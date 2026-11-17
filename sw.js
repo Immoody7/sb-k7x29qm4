@@ -1,5 +1,5 @@
-// Offline + tez khulna. index.html badlo toh neeche version badha do (v5 -> v6).
-const CACHE = 'smartbudget-v5';
+// Offline + tez khulna. index.html badlo toh neeche version badha do (v6 -> v7).
+const CACHE = 'smartbudget-v6';
 const FILES = ['./', 'index.html', 'manifest.json', 'app-icon-192.png', 'app-icon-512.png', 'icon-maskable-512.png'];
 
 self.addEventListener('install', e => {

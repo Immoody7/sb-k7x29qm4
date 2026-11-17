@@ -371,7 +371,7 @@
     }
 
     .ring-sub {
-      font-size: 0.62rem;
+      font-size:.72rem;
       font-weight: 600;
       color: var(--text-muted);
     }
@@ -415,7 +415,7 @@
     }
 
     .stat-mini-sub {
-      font-size: 0.65rem;
+      font-size:.72rem;
       color: var(--text-muted);
       margin-top: 2px;
     }
@@ -681,7 +681,7 @@
       gap: 4px;
       padding: 2px 8px;
       border-radius: 999px;
-      font-size: 0.68rem;
+      font-size:.72rem;
       font-weight: 700;
     }
 
@@ -754,7 +754,7 @@
     }
 
     .badge {
-      font-size: 0.68rem;
+      font-size:.72rem;
       font-weight: 800;
       padding: 3px 8px;
       border-radius: 999px;
@@ -782,7 +782,7 @@
     }
 
     .u-col-label {
-      font-size: 0.66rem;
+      font-size:.72rem;
       color: var(--text-muted);
       font-weight: 600;
     }
@@ -867,7 +867,7 @@
       flex-direction: column;
       align-items: center;
       gap: 3px;
-      font-size: 0.68rem;
+      font-size:.72rem;
       font-weight: 700;
       cursor: pointer;
       padding: 4px 0;
@@ -893,7 +893,7 @@
       right: 14%;
       background: var(--danger);
       color: #fff;
-      font-size: 0.56rem;
+      font-size:.72rem;
       font-weight: 800;
       min-width: 15px;
       height: 15px;
@@ -1281,6 +1281,7 @@
       <svg id="themeIconSun" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:none;"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
       <svg id="themeIconMoon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
+    <button class="menu-btn" aria-label="Alerts" title="Alerts" onclick="openAlerts()" style="position:relative"><svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg><span id="bellBadge" style="display:none;position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:var(--danger);color:#fff;font-size:.62rem;font-weight:800;align-items:center;justify-content:center;padding:0 3px"></span></button>
     <button class="menu-btn" aria-label="Menu" title="Menu" onclick="openMenu()">
       <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
     </button>
@@ -1360,7 +1361,8 @@
         </div>
       </div>
 
-      <div class="section-header">
+      <div id="dashUdhaar" style="margin-bottom:14px"></div>
+          <div class="section-header">
         <div>
           <h2 class="section-title">Category Expenses</h2>
           <p style="font-size:0.74rem; color:var(--text-muted);">Tap category to view entries or edit limits</p>
@@ -1459,6 +1461,7 @@
 
     <section class="tab-pane" id="tab-udhaar">
       <div id="udhaarDueSummary"></div>
+      <input id="udSearch" class="form-input" placeholder="Search name or note" oninput="udQ=this.value;renderUdhaarTab()" style="margin-bottom:8px">
       <div class="udhaar-summary">
         <div class="card" style="padding:12px 14px;">
           <div class="label-xs" style="color:var(--success);">Lena Baki (Lent)</div>
@@ -1686,8 +1689,8 @@
 
 <script>
   const STORAGE_KEY = 'smart_budget_india_v2';
-  const APP_VERSION = '4.5';
-  const WHATS_NEW = ['Plan mark karne par ab wo category mein judta hai', 'Salary Savings: kul jama + kharch kiya + history', 'Naya ☰ menu aur alag Settings screen', 'Halki animations (Settings mein band kar sakte ho)', 'Update se pehle auto-backup (download bhi kar sakte ho)', 'Plans mein Budget check: pending plans se budget bachega ya nahi', 'Notes/Settings/Calculator mein ← Back button', 'PIN recovery code: PIN bhoolne par data bachta hai', 'Naya premium look', 'App kholte hi due/overdue alert', 'Plan se Calendar reminder (📅), naam/amount chhupane ka option', 'Transactions tab: sab entries ek list mein, search aur filter', 'Udhaar mein due date aur overdue tag', 'Kholte hi animation aur naya icon', 'Splash ka rang Android splash jaisa, tez khulna'];
+  const APP_VERSION = '5.0';
+  const WHATS_NEW = ['Plan mark karne par ab wo category mein judta hai', 'Salary Savings: kul jama + kharch kiya + history', 'Naya ☰ menu aur alag Settings screen', 'Halki animations (Settings mein band kar sakte ho)', 'Update se pehle auto-backup (download bhi kar sakte ho)', 'Plans mein Budget check: pending plans se budget bachega ya nahi', 'Notes/Settings/Calculator mein ← Back button', 'PIN recovery code: PIN bhoolne par data bachta hai', 'Naya premium look', 'App kholte hi due/overdue alert', 'Plan se Calendar reminder (📅), naam/amount chhupane ka option', 'Transactions tab: sab entries ek list mein, search aur filter', 'Udhaar mein due date aur overdue tag', 'Kholte hi animation aur naya icon', 'Splash ka rang Android splash jaisa, tez khulna', 'Udhaar: history, group, search, Remind', 'Alerts bell, Time, Back button, First-run setup'];
 
   const formatINR = (num) => {
     const val = Math.round(Number(num) || 0);
@@ -1825,12 +1828,14 @@
         if (appState.appVersion !== APP_VERSION) { try { localStorage.setItem(STORAGE_KEY + '_autobackup', raw); } catch (e) {} }
       } else {
         appState = createEmptyState();
+        appState.setupDone = false;
         saveState();
       }
     } catch (e) {
       appState = createEmptyState();
     }
     if (!appState.notes) appState.notes = [];
+    if (appState.setupDone === undefined) appState.setupDone = true;
     ensureMonthExists(appState.selectedMonth);
   };
 
@@ -1907,8 +1912,9 @@
   document.getElementById('prevMonthBtn').addEventListener('click', () => shiftMonth(-1));
   document.getElementById('nextMonthBtn').addEventListener('click', () => shiftMonth(1));
 
-  const goBack = () => switchMainTab('budget');
+  const goBack = () => history.back();
   const switchMainTab = (tabName) => {
+    navPush(tabName);
     activeMainTab = tabName;
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     document.getElementById(`tab-${tabName}`).classList.add('active');
@@ -2241,7 +2247,7 @@
     renderUdhaarTab();
   };
 
-  const renderUdhaarTab = () => {
+  const renderUdhaarTab = () => { return renderUdhaarTabV5(); /* old renderer below is unused */
     renderUdDueSummary();
     let lentPending = 0;
     let borrowedPending = 0;
@@ -2513,7 +2519,7 @@
           </div>
         </div>
         <div style="font-size:0.82rem; color:var(--text-secondary); white-space:pre-wrap; line-height:1.45;">${escapeHtml(n.body)}</div>
-        <div style="font-size:0.68rem; color:var(--text-muted); align-self:flex-end;">Updated: ${n.date || ''}</div>
+        <div style="font-size:.72rem; color:var(--text-muted); align-self:flex-end;">Updated: ${n.date || ''}</div>
       </div>
     `).join('');
   };
@@ -2525,6 +2531,8 @@
     renderUpcomingPlansTab();
     renderUdhaarTab();
     renderTxns();
+    renderDashUdhaar();
+    renderBell();
     renderNotesTab();
     renderCharts();
     renderDaily();
@@ -2541,11 +2549,13 @@
     clearTimeout(window._mTimer);
     sheet.innerHTML = `<div class="modal-handle"></div>` + html;
     backdrop.style.display = 'flex';
+    if (window._pb) { clearTimeout(window._pb); window._pb = null; modalPushed = true; } else if (!modalPushed) { history.pushState({ m: 1 }, ''); modalPushed = true; }
     requestAnimationFrame(() => backdrop.classList.add('open'));
   };
 
   const closeModal = () => {
     const backdrop = document.getElementById('modalBackdrop');
+    if (modalPushed) { modalPushed = false; window._pb = setTimeout(() => { window._pb = null; ignorePop++; history.back(); }, 60); }
     backdrop.classList.remove('open');
     clearTimeout(window._mTimer); window._mTimer = setTimeout(() => { backdrop.style.display = 'none'; }, 260);
   };
@@ -2572,11 +2582,11 @@
       </div>
       <div class="form-group">
         <label class="form-label">Monthly Income (₹) - ${formatMonthDisplay(appState.selectedMonth)}</label>
-        <input type="number" id="inpIncome" class="form-input" value="${mData.income}" min="0" />
+        <input type="number" inputmode="decimal" id="inpIncome" class="form-input" value="${mData.income}" min="0" />
       </div>
       <div class="form-group">
         <label class="form-label">Target Saving Percentage (%)</label>
-        <input type="number" id="inpTargetPct" class="form-input" value="${mData.targetSavingPct}" min="0" max="100" />
+        <input type="number" inputmode="decimal" id="inpTargetPct" class="form-input" value="${mData.targetSavingPct}" min="0" max="100" />
       </div>
       <button class="btn-primary" style="justify-content:center; padding:12px;" onclick="saveIncomeSettings()">Save Changes</button>
     `);
@@ -2604,11 +2614,11 @@
       </p>
       <div class="form-group">
         <label class="form-label">Current Saved Amount (₹)</label>
-        <input type="number" id="salarySavingInp" class="form-input" value="${mData.salarySavings || 0}" min="0" autofocus />
+        <input type="number" inputmode="decimal" id="salarySavingInp" class="form-input" value="${mData.salarySavings || 0}" min="0" autofocus />
       </div>
       <div class="form-group">
         <label class="form-label">Or Add Extra Amount Now (₹)</label>
-        <input type="number" id="salarySavingAddInp" class="form-input" placeholder="e.g. 2000" min="0" />
+        <input type="number" inputmode="decimal" id="salarySavingAddInp" class="form-input" placeholder="e.g. 2000" min="0" />
       </div>
       <button class="btn-primary" style="justify-content:center; padding:12px;" onclick="saveSalarySavingAmount()">Save Salary Savings</button>
     `);
@@ -2645,7 +2655,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Amount (₹)</label>
-        <input type="number" id="planAmt" oninput="updatePlanWarn('${plan ? plan.id : ''}')" class="form-input" value="${amtValue}" placeholder="e.g. 2500" />
+        <input type="number" inputmode="decimal" id="planAmt" oninput="updatePlanWarn('${plan ? plan.id : ''}')" class="form-input" value="${amtValue}" placeholder="e.g. 2500" />
       </div>
       <div class="form-group">
         <label class="form-label">Due / Reminder Date</label>
@@ -2758,7 +2768,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Amount (₹)</label>
-        <input type="number" id="expAmt" class="form-input" value="${prefillAmount}" placeholder="e.g. 500" autofocus />
+        <input type="number" inputmode="decimal" id="expAmt" class="form-input" value="${prefillAmount}" placeholder="e.g. 500" autofocus />
       </div>
       <div class="form-group">
         <label class="form-label">Category</label>
@@ -2770,7 +2780,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Date</label>
-        <input type="date" id="expDate" class="form-input" value="${today}" />
+        <input type="date" id="expDate" class="form-input" value="${today}" /><label class="form-label" style="margin-top:6px">Time</label><input type="time" id="expTime" class="form-input" value="${nowHM()}" />
       </div>
       <button class="btn-primary" style="justify-content:center; padding:12px;" onclick="saveNewExpense()">Save Expense</button>
     `);
@@ -2796,7 +2806,7 @@
     const date = document.getElementById('expDate').value || todayStr();
     if (!amount || amount <= 0) { showToast('Please enter a valid amount'); return; }
     const srcCat = getCurrentMonthData().categories.find(c => c.id === catId);
-    const target = placeExpense({ id: 'exp_' + Date.now(), catId, amount, note: note || 'Expense', date }, srcCat);
+    const target = placeExpense({ id: 'exp_' + Date.now(), catId, amount, note: note || 'Expense', date, time: $v('expTime') || nowHM() }, srcCat);
     saveState(); closeModal(); renderAll();
     showToast(target === appState.selectedMonth ? `Added ${formatINR(amount)} expense!` : `Saved in ${formatMonthDisplay(target)}`);
   };
@@ -2808,10 +2818,10 @@
     const options = mData.categories.map(c => `<option value="${c.id}" ${c.id === e.catId ? 'selected' : ''}>${c.icon} ${escapeHtml(c.name)}</option>`).join('');
     openModal(`
       <div class="modal-header"><h3 class="modal-title">Edit Expense</h3><button class="close-btn" onclick="closeModal()">✕</button></div>
-      <div class="form-group"><label class="form-label">Amount (₹)</label><input type="number" id="expAmt" class="form-input" value="${e.amount}" /></div>
+      <div class="form-group"><label class="form-label">Amount (₹)</label><input type="number" inputmode="decimal" id="expAmt" class="form-input" value="${e.amount}" /></div>
       <div class="form-group"><label class="form-label">Category</label><select id="expCat" class="form-select">${options}</select></div>
       <div class="form-group"><label class="form-label">Note</label><input type="text" id="expNote" class="form-input" value="${escapeHtml(e.note)}" /></div>
-      <div class="form-group"><label class="form-label">Date</label><input type="date" id="expDate" class="form-input" value="${e.date || ''}" /></div>
+      <div class="form-group"><label class="form-label">Date</label><input type="date" id="expDate" class="form-input" value="${e.date || ''}" /><label class="form-label" style="margin-top:6px">Time</label><input type="time" id="expTime" class="form-input" value="${e.time || timeFromId(e.id)}" /></div>
       <button class="btn-primary" style="justify-content:center; padding:12px;" onclick="saveExpenseEdit('${e.id}')">Save Changes</button>
     `);
   };
@@ -2827,7 +2837,7 @@
     mData.expenses = mData.expenses.filter(x => x.id !== expId);
     const target = placeExpense({ id: old.id, catId, amount,
       note: document.getElementById('expNote').value.trim() || 'Expense',
-      date: document.getElementById('expDate').value || old.date }, srcCat);
+      date: document.getElementById('expDate').value || old.date, time: $v('expTime') || old.time }, srcCat);
     saveState(); closeModal(); renderAll();
     showToast(target === appState.selectedMonth ? 'Expense updated' : `Moved to ${formatMonthDisplay(target)}`);
   };
@@ -2849,7 +2859,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Monthly Budget Limit (₹)</label>
-        <input type="number" id="catLimitInp" class="form-input" value="${cat ? cat.limit : 5000}" min="0" />
+        <input type="number" inputmode="decimal" id="catLimitInp" class="form-input" value="${cat ? cat.limit : 5000}" min="0" />
       </div>
       <div class="form-group">
         <label class="form-label">Select Icon</label>
@@ -2967,12 +2977,12 @@
       </div>
       <div class="form-group">
         <label class="form-label">Target Goal Amount (₹)</label>
-        <input type="number" id="fundTargetInp" class="form-input" value="${fund ? fund.target : 50000}" min="0" />
+        <input type="number" inputmode="decimal" id="fundTargetInp" class="form-input" value="${fund ? fund.target : 50000}" min="0" />
       </div>
       ${!fund ? `
         <div class="form-group">
           <label class="form-label">Starting Balance (₹)</label>
-          <input type="number" id="fundStartInp" class="form-input" value="0" min="0" />
+          <input type="number" inputmode="decimal" id="fundStartInp" class="form-input" value="0" min="0" />
         </div>
       ` : ''}
       <div class="form-group">
@@ -3040,7 +3050,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Amount (₹)</label>
-        <input type="number" id="fundTxnAmt" class="form-input" placeholder="e.g. 2000" autofocus />
+        <input type="number" inputmode="decimal" id="fundTxnAmt" class="form-input" placeholder="e.g. 2000" autofocus />
       </div>
       <div class="form-group">
         <label class="form-label">Note</label>
@@ -3072,6 +3082,7 @@
     fund.history = fund.history || [];
     fund.history.unshift({
       id: 'fh_' + Date.now(),
+      time: nowHM(),
       type,
       amount: amt,
       month: appState.selectedMonth,
@@ -3134,11 +3145,11 @@
       </div>
       <div class="form-group">
         <label class="form-label">Total Amount (₹)</label>
-        <input type="number" id="udTotal" class="form-input" placeholder="e.g. 5000" />
+        <input type="number" inputmode="decimal" id="udTotal" class="form-input" placeholder="e.g. 5000" />
       </div>
       <div class="form-group">
         <label class="form-label">Date</label>
-        <input type="date" id="udDate" class="form-input" value="${today}" />
+        <input type="date" id="udDate" class="form-input" value="${today}" /><label class="form-label" style="margin-top:6px">Time</label><input type="time" id="udTime" class="form-input" value="${nowHM()}" />
       </div>
       <div class="form-group">
         <label class="form-label">Wapas kab chahiye? (optional)</label>
@@ -3174,8 +3185,9 @@
       paidAmount: 0,
       date,
       due,
+      time: $v('udTime') || nowHM(),
       notes,
-      history: [{ id: 'uh_' + Date.now(), action: type === 'lent' ? 'Initial Lent' : 'Initial Borrowed', amount: totalAmount, date, note: notes || 'Created' }]
+      history: [{ id: 'uh_' + Date.now(), action: type === 'lent' ? 'Initial Lent' : 'Initial Borrowed', amount: totalAmount, date, time: $v('udTime') || nowHM(), note: notes || 'Created' }]
     });
 
     activeUdhaarSubTab = type;
@@ -3199,11 +3211,11 @@
       <div style="font-size:0.82rem; color:var(--text-secondary);">Remaining: <strong style="color:var(--danger);">${formatINR(remaining)}</strong></div>
       <div class="form-group">
         <label class="form-label">Amount (₹)</label>
-        <input type="number" id="udPayAmt" class="form-input" value="${remaining}" max="${remaining}" min="1" />
+        <input type="number" inputmode="decimal" id="udPayAmt" class="form-input" value="${remaining}" max="${remaining}" min="1" />
       </div>
       <div class="form-group">
         <label class="form-label">Date</label>
-        <input type="date" id="udPayDate" class="form-input" value="${today}" />
+        <input type="date" id="udPayDate" class="form-input" value="${today}" /><label class="form-label" style="margin-top:6px">Time</label><input type="time" id="udPayTime" class="form-input" value="${nowHM()}" />
       </div>
       <div class="form-group">
         <label class="form-label">Payment Note</label>
@@ -3232,6 +3244,7 @@
       action: item.type === 'lent' ? 'Received Back' : 'Paid Back',
       amount: amt,
       date,
+      time: $v('udPayTime') || nowHM(),
       note: note || 'Payment'
     });
 
@@ -3257,12 +3270,9 @@
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
         <div class="form-group">
           <label class="form-label">Total (₹)</label>
-          <input type="number" id="editUdTotal" class="form-input" value="${item.totalAmount}" />
+          <input type="number" inputmode="decimal" id="editUdTotal" class="form-input" value="${item.totalAmount}" />
         </div>
-        <div class="form-group">
-          <label class="form-label">Cleared (₹)</label>
-          <input type="number" id="editUdPaid" class="form-input" value="${item.paidAmount}" />
-        </div>
+        <div class="form-group"><label class="form-label">Cleared</label><div class="form-input" style="opacity:.75">${formatINR(item.paidAmount)} (via payments)</div></div>
       </div>
       <div class="form-group">
         <label class="form-label">Notes</label>
@@ -3273,6 +3283,7 @@
         <input type="date" id="editUdDue" class="form-input" value="${item.due || ''}" />
         <div style="display:flex;gap:6px;margin-top:6px">${[7, 15, 30].map(n => `<button type="button" class="btn-secondary" style="padding:6px 10px;font-size:.74rem" onclick="setUdDue('editUdDue',${n})">${n} din baad</button>`).join('')}</div>
       </div>
+      ${udHistHtml(item)}
       <div style="display:flex; gap:10px; margin-top:6px;">
         <button class="btn-danger" onclick="deleteUdhaarEntry('${item.id}')">Delete</button>
         <button class="btn-primary" style="flex:1; justify-content:center; padding:12px;" onclick="saveUdhaarEdits('${item.id}')">Save Changes</button>
@@ -3285,7 +3296,7 @@
     if (!item) return;
     item.person = document.getElementById('editUdPerson').value.trim();
     item.totalAmount = Math.max(0, Number(document.getElementById('editUdTotal').value) || 0);
-    item.paidAmount = Math.max(0, Math.min(item.totalAmount, Number(document.getElementById('editUdPaid').value) || 0));
+    item.paidAmount = Math.min(item.paidAmount, item.totalAmount);
     item.notes = document.getElementById('editUdNotes').value.trim();
     item.due = document.getElementById('editUdDue').value;
 
@@ -3685,7 +3696,7 @@ ${n.body}`;
     document.getElementById('lockScreen').style.display = 'none'; renderPinStatus(); showRecoveryCode(code);
   };
   const eraseWithBackup = () => {
-    if (!confirm('Pehle backup file download hogi, phir saara data hatega. Aage badhein?')) return;
+    if (!window._ok) { askConfirm('A backup file will download first, then all data will be erased. Continue?', 'window._ok=true;eraseWithBackup();window._ok=false'); return; }
     const blob = new Blob([JSON.stringify(appState, null, 2)], { type: 'application/json' }), url = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = url; a.download = `SmartBudget_PreReset_${todayStr()}.json`; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => { URL.revokeObjectURL(url); _clearAllData(); applyTheme(); closeModal(); document.getElementById('lockScreen').style.display = 'none'; showToast('Backup download hua, data hata diya'); }, 1200);
@@ -3781,7 +3792,7 @@ ${n.body}`;
   const openExtraIncomeModal = () => {
     const mo = getCurrentMonthData(); const list = mo.extraIncome || [];
     openModal(head('💵 Extra Income (' + formatMonthDisplay(appState.selectedMonth) + ')') + `
-      <div class="form-group"><label class="form-label">Amount (₹)</label><input id="eiAmt" type="number" class="form-input"></div>
+      <div class="form-group"><label class="form-label">Amount (₹)</label><input id="eiAmt" type="number" inputmode="decimal" class="form-input"></div>
       <div class="form-group"><label class="form-label">Source (freelance, bonus, refund...)</label><input id="eiNote" class="form-input"></div>
       <button class="btn-primary" style="justify-content:center;padding:12px;margin-bottom:12px" onclick="saveExtraIncome()">Add Income</button>
       ${list.map(x => `<div class="row-item"><span>${escapeHtml(x.note)} <small style="color:var(--text-muted)">${x.date}</small></span><span><strong>${money(x.amount)}</strong> <button class="mini-icon-btn" onclick="delExtraIncome('${x.id}')">🗑️</button></span></div>`).join('')}`);
@@ -3789,7 +3800,7 @@ ${n.body}`;
   const saveExtraIncome = () => {
     const a = Number($v('eiAmt')); if (!a || a <= 0) { showToast('Enter valid amount'); return; }
     const mo = getCurrentMonthData(); if (!mo.extraIncome) mo.extraIncome = [];
-    mo.extraIncome.unshift({ id: 'ei_' + Date.now(), amount: a, note: $v('eiNote').trim() || 'Extra income', date: todayStr() });
+    mo.extraIncome.unshift({ id: 'ei_' + Date.now(), amount: a, note: $v('eiNote').trim() || 'Extra income', date: todayStr(), time: nowHM() });
     saveState(); renderAll(); openExtraIncomeModal(); showToast('Income added');
   };
   const delExtraIncome = (id) => { snap(); const mo = getCurrentMonthData(); mo.extraIncome = mo.extraIncome.filter(x => x.id !== id); saveState(); renderAll(); openExtraIncomeModal(); showUndo('Income deleted'); };
@@ -3797,7 +3808,7 @@ ${n.body}`;
   /* ---- Split (creates udhaar entries) ---- */
   const openSplitModal = () => openModal(head('👥 Split Expense') + `
     <div class="form-group"><label class="form-label">What for?</label><input id="spTitle" class="form-input" placeholder="e.g. Dinner, Trip petrol"></div>
-    <div class="form-group"><label class="form-label">Total bill (₹)</label><input id="spTotal" type="number" class="form-input"></div>
+    <div class="form-group"><label class="form-label">Total bill (₹)</label><input id="spTotal" type="number" inputmode="decimal" class="form-input"></div>
     <div class="form-group"><label class="form-label">Other people (comma se alag)</label><input id="spPeople" class="form-input" placeholder="Rahul, Amit"></div>
     <div class="form-group"><label class="form-label">Kisne pay kiya?</label><input id="spPayer" class="form-input" placeholder="Khali = maine pay kiya. Ya naam likho"></div>
     <div class="form-group"><label class="form-label">Meri hissa expense mein add karo (category)</label><select id="spCat"><option value="">Mat karo</option>${catOptions()}</select></div>
@@ -3819,7 +3830,7 @@ ${n.body}`;
   /* ---- Shopping list ---- */
   const openShoppingModal = () => {
     const l = appState.shopping || [];
-    openModal(head('🛒 Shopping List') + `<div style="display:flex;gap:6px;margin-bottom:10px"><input id="shName" class="form-input" placeholder="Item"><input id="shPrice" type="number" class="form-input" placeholder="₹" style="max-width:80px"><button class="btn-primary" onclick="addShop()">+</button></div>
+    openModal(head('🛒 Shopping List') + `<div style="display:flex;gap:6px;margin-bottom:10px"><input id="shName" class="form-input" placeholder="Item"><input id="shPrice" type="number" inputmode="decimal" class="form-input" placeholder="₹" style="max-width:80px"><button class="btn-primary" onclick="addShop()">+</button></div>
       <div style="max-height:34vh;overflow-y:auto">${l.map(x => `<div class="row-item"><label style="display:flex;gap:8px;align-items:center;flex:1"><input type="checkbox" ${x.done ? 'checked' : ''} onchange="toggleShop('${x.id}')"><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${escapeHtml(x.name)}</span></label><span>${x.price ? money(x.price) : ''} <button class="mini-icon-btn" onclick="delShop('${x.id}')">🗑️</button></span></div>`).join('') || '<div style="color:var(--text-muted);font-size:.82rem">List khali hai.</div>'}</div>
       <div class="form-group" style="margin-top:10px"><label class="form-label">Ticked items ko expense banao</label><select id="shCat">${catOptions()}</select></div>
       <button class="btn-secondary" style="justify-content:center;padding:12px;width:100%" onclick="shopToExpense()">✓ Ticked → Expense (${money(l.filter(x => x.done).reduce((s, x) => s + Number(x.price || 0), 0))})</button>`);
@@ -3988,7 +3999,7 @@ ${n.body}`;
     const f = id ? findSalarySpend(id) : null, s = f ? f.s : null;
     openModal(head(s ? '✏️ Kharch edit' : '➖ Salary Savings se kharch') + `
       <p style="font-size:.78rem;color:var(--text-secondary)">Abhi jama: <strong>${money(getSalaryPool().left)}</strong></p>
-      <div class="form-group"><label class="form-label">Amount (₹)</label><input id="ssAmt" type="number" class="form-input" value="${s ? s.amount : ''}"></div>
+      <div class="form-group"><label class="form-label">Amount (₹)</label><input id="ssAmt" type="number" inputmode="decimal" class="form-input" value="${s ? s.amount : ''}"></div>
       <div class="form-group"><label class="form-label">Note</label><input id="ssNote" class="form-input" value="${s ? escapeHtml(s.note) : ''}" placeholder="e.g. Phone repair"></div>
       <button class="btn-primary" style="justify-content:center;padding:12px" onclick="saveSalarySpend('${id}')">Save</button>`);
   };
@@ -4073,7 +4084,7 @@ ${n.body}`;
   const restoreAutoBackup = () => {
     let raw = null; try { raw = localStorage.getItem(STORAGE_KEY + '_autobackup'); } catch (e) {}
     if (!raw) { showToast('Auto-backup nahi mila'); return; }
-    if (!confirm('Abhi ka data hat kar update se pehle wala data wapas aayega. Continue?')) return;
+    if (!window._ok) { askConfirm('Current data will be replaced by the pre-update backup. Continue?', 'window._ok=true;restoreAutoBackup();window._ok=false'); return; }
     try { applyRestoredData(JSON.parse(raw)); } catch (e) { showToast('Backup kharab hai'); }
   };
 
@@ -4110,11 +4121,11 @@ ${n.body}`;
       if (!txAllMonths && ym !== cur) return;
       const m = appState.months[ym];
       if (Number(m.income) > 0) rows.push({ k: 'inc', date: ym + '-01', title: 'Monthly income', sub: 'Salary', amt: Number(m.income), sign: 1 });
-      (m.extraIncome || []).forEach(x => rows.push({ k: 'inc', date: x.date || ym + '-01', title: x.note || 'Extra income', sub: 'Income', amt: Number(x.amount), sign: 1, del: x.id }));
-      (m.expenses || []).forEach(e => { const c = (m.categories || []).find(c => c.id === e.catId); rows.push({ k: 'out', date: e.date || ym + '-01', title: e.note || (c ? c.name : 'Kharch'), sub: c ? c.name : 'Kharch', amt: Number(e.amount), sign: -1, exp: e.id, cat: e.catId }); });
+      (m.extraIncome || []).forEach(x => rows.push({ k: 'inc', date: x.date || ym + '-01', title: x.note || 'Extra income', sub: 'Income', amt: Number(x.amount), sign: 1, del: x.id, tm: x.time || timeFromId(x.id) }));
+      (m.expenses || []).forEach(e => { const c = (m.categories || []).find(c => c.id === e.catId); rows.push({ k: 'out', date: e.date || ym + '-01', title: e.note || (c ? c.name : 'Kharch'), sub: c ? c.name : 'Kharch', amt: Number(e.amount), sign: -1, exp: e.id, cat: e.catId, tm: e.time || timeFromId(e.id) }); });
     });
-    (appState.funds || []).forEach(f => (f.history || []).forEach(h => { if (!txAllMonths && h.month !== cur) return; rows.push({ k: 'fund', date: h.date, title: f.name, sub: h.type === 'add' ? 'Fund mein jama' : 'Fund se nikala', amt: Number(h.amount), sign: h.type === 'add' ? 0 : 0, tag: h.type === 'add' ? '+' : '−' }); }));
-    appState.udhaar.forEach(u => (u.history || []).forEach(h => { if (!txAllMonths && (h.date || '').slice(0, 7) !== cur) return; rows.push({ k: 'ud', date: h.date || '', title: u.person, sub: `${u.type === 'lent' ? 'Udhaar diya' : 'Udhaar liya'} · ${h.action || ''}`, amt: Number(h.amount), sign: 0 }); }));
+    (appState.funds || []).forEach(f => (f.history || []).forEach(h => { if (!txAllMonths && h.month !== cur) return; rows.push({ k: 'fund', date: h.date, title: f.name, sub: h.type === 'add' ? 'Fund mein jama' : 'Fund se nikala', amt: Number(h.amount), sign: h.type === 'add' ? 0 : 0, tag: h.type === 'add' ? '+' : '−', tm: h.time || timeFromId(h.id) }); }));
+    appState.udhaar.forEach(u => (u.history || []).forEach(h => { if (!txAllMonths && (h.date || '').slice(0, 7) !== cur) return; rows.push({ k: 'ud', date: h.date || '', title: u.person, sub: `${u.type === 'lent' ? 'Udhaar diya' : 'Udhaar liya'} · ${h.action || ''}`, amt: Number(h.amount), sign: 0, tm: h.time || timeFromId(h.id) }); }));
     return rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   };
   const renderTxns = () => {
@@ -4129,11 +4140,11 @@ ${n.body}`;
     if (!rows.length) { el.innerHTML = '<div class="empty-state">Koi transaction nahi mila.</div>'; return; }
     const col = { out: 'var(--danger)', inc: 'var(--success)', fund: 'var(--accent)', ud: 'var(--warning)' };
     el.innerHTML = rows.map(r => {
-      const act = r.exp ? `openEditExpenseModal('${r.exp}','${r.cat}')` : r.del ? `if(confirm('Ye income hatayein?')){delExtraIncome('${r.del}')}` : r.k === 'fund' ? "switchMainTab('funds')" : r.k === 'ud' ? "switchMainTab('udhaar')" : '';
+      const act = r.exp ? `openEditExpenseModal('${r.exp}','${r.cat}')` : r.del ? `askConfirm('Delete this income?','delExtraIncome(\'${r.del}\')')` : r.k === 'fund' ? "switchMainTab('funds')" : r.k === 'ud' ? "switchMainTab('udhaar')" : '';
       const sign = r.k === 'out' ? '−' : r.k === 'inc' ? '+' : (r.tag || '');
       return `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:12px;cursor:pointer" ${act ? `onclick="${act}"` : ''}>
         <div style="width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:${col[r.k]}"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">${TX_ICON[r.k]}</svg></div>
-        <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.title)}</div><div style="font-size:.72rem;color:var(--text-muted)">${escapeHtml(r.sub)} · ${r.date}</div></div>
+        <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.title)}</div><div style="font-size:.72rem;color:var(--text-muted)">${escapeHtml(r.sub)} · ${r.date}${r.tm ? ' · ' + fmt12(r.tm) : ''}</div></div>
         <div style="font-weight:800;color:${col[r.k]}">${sign}${money(r.amt)}</div></div>`;
     }).join('');
   };
@@ -4171,13 +4182,90 @@ ${n.body}`;
     showToast('Download file kholo, Calendar mein "Phone/Device" chuno');
   };
 
+  /* ==========================================================================
+     v5.0  helpers, udhaar, alerts, setup, back button
+     ========================================================================== */
+  const nowHM = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+  const fmt12 = (hm) => { if (!hm) return ''; const [h, m] = hm.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; };
+  const timeFromId = (id) => { const n = Number(String(id || '').split('_')[1]); if (!n || n < 1e12) return ''; const d = new Date(n); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+  const askConfirm = (msg, code) => openModal(head('Please confirm') + `<p style="font-size:.88rem;margin:6px 0 14px">${escapeHtml(msg)}</p><div style="display:flex;gap:10px"><button class="btn-secondary" style="flex:1;justify-content:center" onclick="closeModal()">Cancel</button><button class="btn-primary" style="flex:1;justify-content:center" onclick="closeModal();setTimeout(()=>{${code}},300)">Yes</button></div>`);
+  document.addEventListener('click', (e) => { const b = e.target.closest('#modalSheetContent .btn-primary'); if (!b) return; if (b._lock) { e.stopImmediatePropagation(); e.preventDefault(); return; } b._lock = true; setTimeout(() => { b._lock = false; }, 800); }, true);
+
+  /* ---- [UDHAAR] grouped list, search, history, remind ---- */
+  let udQ = '', udShowSettled = false;
+  const udRem = (u) => Math.max(0, Number(u.totalAmount) - Number(u.paidAmount));
+  const udCard = (item) => {
+    const total = Number(item.totalAmount) || 0, paid = Number(item.paidAmount) || 0, rem = udRem(item), done = rem === 0, pct = total > 0 ? Math.min(100, Math.round(paid / total * 100)) : 100;
+    return `<div class="udhaar-card"><div class="udhaar-top"><div><div style="font-weight:800;font-size:.98rem">${escapeHtml(item.person)}</div><div style="font-size:.73rem;color:var(--text-muted);margin-top:2px">Date: ${item.date || 'N/A'}${item.time ? ' · ' + fmt12(item.time) : ''}</div>${dueTag(item)}</div><span class="badge ${done ? 'badge-settled' : 'badge-pending'}">${done ? 'Settled' : 'Pending'}</span></div>
+      <div class="udhaar-amounts"><div><div class="u-col-label">Total</div><div class="u-col-val">${formatINR(total)}</div></div><div><div class="u-col-label">${item.type === 'lent' ? 'Received' : 'Paid'}</div><div class="u-col-val" style="color:var(--success)">${formatINR(paid)}</div></div><div><div class="u-col-label">Remaining</div><div class="u-col-val" style="color:${done ? 'var(--text-muted)' : 'var(--danger)'}">${formatINR(rem)}</div></div></div>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:var(--success)"></div></div>
+      ${item.notes ? `<div style="font-size:.76rem;color:var(--text-secondary)">${escapeHtml(item.notes)}</div>` : ''}
+      <div class="udhaar-actions">${!done ? `<button class="btn-primary" style="flex:1;justify-content:center" onclick="openUdhaarPaymentModal('${item.id}')">+ ${item.type === 'lent' ? 'Receive Payment' : 'Pay Back'}</button><button class="eye-btn" onclick="remindUdhaar('${item.id}')">Remind</button>` : '<div style="flex:1;font-size:.78rem;color:var(--success);font-weight:700">All clear</div>'}<button class="eye-btn" onclick="openUdhaarEyeModal('${item.id}')">Details</button></div></div>`;
+  };
+  const renderUdhaarTabV5 = () => {
+    renderUdDueSummary();
+    let lp = 0, bp = 0; appState.udhaar.forEach(u => { if (u.type === 'lent') lp += udRem(u); else bp += udRem(u); });
+    document.getElementById('summaryLentPending').textContent = formatINR(lp); document.getElementById('summaryBorrowedPending').textContent = formatINR(bp);
+    const q = udQ.trim().toLowerCase(), c = document.getElementById('udhaarListContainer');
+    const list = appState.udhaar.filter(u => u.type === activeUdhaarSubTab && (!q || `${u.person} ${u.notes || ''}`.toLowerCase().includes(q)));
+    const pend = list.filter(u => udRem(u) > 0), setl = list.filter(u => udRem(u) === 0);
+    if (!list.length) { c.innerHTML = '<div class="empty-state">No records here. Tap <strong>+ Add Entry</strong> to log one.</div>'; return; }
+    const key = (u) => u.due ? daysFromToday(u.due) : 99999, groups = {};
+    pend.forEach(u => { const k = u.person.trim().toLowerCase(); (groups[k] = groups[k] || []).push(u); });
+    const gl = Object.values(groups).map(g => { g.sort((a, b) => key(a) - key(b)); return g; }).sort((a, b) => key(a[0]) - key(b[0]));
+    let h = gl.map(g => (g.length > 1 ? `<div style="display:flex;justify-content:space-between;font-weight:800;font-size:.85rem;padding:4px 4px 0"><span>${escapeHtml(g[0].person)} (${g.length} entries)</span><span style="color:var(--danger)">${formatINR(g.reduce((t, u) => t + udRem(u), 0))} pending</span></div>` : '') + g.map(udCard).join('')).join('');
+    if (setl.length) h += `<button class="btn-secondary" style="justify-content:center" onclick="udShowSettled=!udShowSettled;renderUdhaarTab()">${udShowSettled ? 'Hide' : 'Show'} settled (${setl.length})</button>` + (udShowSettled ? setl.map(udCard).join('') : '');
+    c.innerHTML = h;
+  };
+  const udHistHtml = (item) => `<div style="margin:8px 0"><div style="font-weight:800;font-size:.82rem;margin-bottom:4px">History</div>${(item.history || []).map(h => { const pay = /Back/.test(h.action || ''); return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:.78rem;padding:5px 0;border-bottom:1px solid var(--border-color)"><div><div style="font-weight:700">${escapeHtml(h.action || '')}${h.note && h.note !== 'Payment' && h.note !== 'Created' ? ' · ' + escapeHtml(h.note) : ''}</div><div style="color:var(--text-muted);font-size:.7rem">${h.date || ''}${(h.time || timeFromId(h.id)) ? ' · ' + fmt12(h.time || timeFromId(h.id)) : ''}</div></div><div style="display:flex;gap:5px;align-items:center"><strong>${formatINR(h.amount)}</strong>${pay ? `<button class="btn-secondary" style="padding:4px 8px" onclick="openUdPayEdit('${item.id}','${h.id}')">Edit</button><button class="btn-secondary" style="padding:4px 8px" onclick="askConfirm('Delete this payment?','delUdPay(\\'${item.id}\\',\\'${h.id}\\')')">Del</button>` : ''}</div></div>`; }).join('')}</div>`;
+  const openUdPayEdit = (id, hid) => { const it = appState.udhaar.find(u => u.id === id), h = it && it.history.find(x => x.id === hid); if (!h) return; openModal(head('Edit payment') + `<div class="form-group"><label class="form-label">Amount</label><input id="upAmt" type="number" inputmode="decimal" class="form-input" value="${h.amount}"></div><div class="form-group"><label class="form-label">Date</label><input id="upDate" type="date" class="form-input" value="${h.date || ''}"><label class="form-label" style="margin-top:6px">Time</label><input id="upTime" type="time" class="form-input" value="${h.time || timeFromId(h.id)}"></div><button class="btn-primary" style="justify-content:center;padding:12px" onclick="saveUdPayEdit('${id}','${hid}')">Save</button>`); };
+  const saveUdPayEdit = (id, hid) => { const it = appState.udhaar.find(u => u.id === id), h = it.history.find(x => x.id === hid), a = Number($v('upAmt')); if (!a || a <= 0 || it.paidAmount - h.amount + a > it.totalAmount) { showToast('Invalid amount'); return; } it.paidAmount = it.paidAmount - h.amount + a; h.amount = a; h.date = $v('upDate') || h.date; h.time = $v('upTime') || h.time; saveState(); renderAll(); openUdhaarEyeModal(id); };
+  const delUdPay = (id, hid) => { const it = appState.udhaar.find(u => u.id === id), h = it && it.history.find(x => x.id === hid); if (!h) return; it.paidAmount = Math.max(0, it.paidAmount - h.amount); it.history = it.history.filter(x => x.id !== hid); saveState(); renderAll(); openUdhaarEyeModal(id); };
+  const remindUdhaar = async (id) => { const u = appState.udhaar.find(x => x.id === id); if (!u) return; const t = `Hi ${u.person}, a gentle reminder about ${formatINR(udRem(u))}${u.due ? ' (due ' + u.due + ')' : ''}. Thanks!`; try { if (navigator.share) await navigator.share({ text: t }); else { await navigator.clipboard.writeText(t); showToast('Message copied'); } } catch (e) {} };
+  const renderDashUdhaar = () => { const el = document.getElementById('dashUdhaar'); if (!el) return; let l = 0, b = 0; appState.udhaar.forEach(u => { if (u.type === 'lent') l += udRem(u); else b += udRem(u); }); el.innerHTML = (l || b) ? `<div class="card" style="padding:12px 14px;cursor:pointer" onclick="switchMainTab('udhaar')"><div style="display:flex;justify-content:space-between"><div><div class="label-xs">To receive</div><div style="font-weight:800;color:var(--success)">${formatINR(l)}</div></div><div style="text-align:right"><div class="label-xs">To pay</div><div style="font-weight:800;color:var(--danger)">${formatINR(b)}</div></div></div></div>` : ''; };
+
+  /* ---- [ALERTS] bell ---- */
+  const getAlerts = () => {
+    const a = [], t = todayStr(), m = getCurrentMonthData(), mt = getMonthMetrics(appState.selectedMonth);
+    allPlans().filter(p => !p.marked && p.date).forEach(p => { const d = daysFromToday(p.date); if (d < 0) a.push(['danger', `${p.title}: ${-d} days overdue`]); else if (d <= 3) a.push(['warn', `${p.title}: ${d === 0 ? 'due today' : 'due in ' + d + ' days'}`]); });
+    appState.udhaar.filter(u => u.due && udRem(u) > 0).forEach(u => { const d = daysFromToday(u.due); if (d < 0) a.push(['danger', `${u.person}: ${formatINR(udRem(u))} ${u.type === 'lent' ? 'to receive' : 'to pay'}, ${-d} days late`]); else if (d <= 3) a.push(['warn', `${u.person}: ${formatINR(udRem(u))} due ${d === 0 ? 'today' : 'in ' + d + ' days'}`]); });
+    (m.categories || []).forEach(c => { const sp = m.expenses.filter(e => e.catId === c.id).reduce((x, e) => x + Number(e.amount), 0); if (Number(c.limit) > 0 && sp > c.limit) a.push(['danger', `${c.name}: over limit by ${formatINR(sp - c.limit)}`]); });
+    if (mt.netActualSaving < 0) a.push(['danger', `Overspent this month by ${formatINR(-mt.netActualSaving)}`]);
+    if (!appState.lastBackup) a.push(['warn', 'No backup taken yet']); else if (-daysFromToday(appState.lastBackup) > 14) a.push(['warn', `Last backup ${-daysFromToday(appState.lastBackup)} days ago`]);
+    return a;
+  };
+  const renderBell = () => { const b = document.getElementById('bellBadge'); if (!b) return; const n = getAlerts().length; b.style.display = n ? 'flex' : 'none'; b.textContent = n > 9 ? '9+' : n; };
+  const openAlerts = () => { const a = getAlerts(); openModal(head('Alerts') + (a.length ? a.map(([c, t]) => `<div style="padding:9px 0;border-bottom:1px solid var(--border-color);font-size:.86rem;color:${c === 'danger' ? 'var(--danger)' : 'var(--warning)'};font-weight:700">${escapeHtml(t)}</div>`).join('') : '<p style="color:var(--text-secondary);font-size:.86rem">All clear. Nothing needs attention.</p>')); };
+
+  /* ---- [SETUP] first launch ---- */
+  const SETUP_CATS = [['Rent & Bills', '🏠', 30, '#6366f1'], ['Groceries', '🛒', 15, '#10b981'], ['Transport', '🚗', 8, '#f59e0b'], ['Food & Dining', '🍽️', 10, '#ef4444'], ['Shopping', '🛍️', 8, '#ec4899'], ['Health', '💊', 5, '#14b8a6'], ['Education', '📚', 5, '#8b5cf6'], ['Entertainment', '🎬', 5, '#0ea5e9']];
+  const openSetupModal = () => openModal(head('Welcome to SmartBudget') + `<p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">Quick setup. You can change everything later.</p><div class="form-group"><label class="form-label">Monthly income (₹)</label><input id="suInc" type="number" inputmode="decimal" class="form-input" placeholder="e.g. 30000"></div><div class="form-group"><label class="form-label">Saving target (%)</label><input id="suPct" type="number" inputmode="decimal" class="form-input" value="20"></div><div class="form-group"><label class="form-label">Categories</label>${SETUP_CATS.map((c, i) => `<label style="display:flex;gap:8px;align-items:center;padding:4px 0;font-size:.86rem"><input type="checkbox" class="suCat" value="${i}" ${i < 4 ? 'checked' : ''}> ${c[1]} ${c[0]}</label>`).join('')}</div><button class="btn-primary" style="justify-content:center;padding:12px;margin-bottom:8px" onclick="saveSetup()">Start</button><button class="btn-secondary" style="justify-content:center" onclick="appState.setupDone=true;saveState();closeModal();renderAll()">Skip for now</button>`);
+  const saveSetup = () => { const inc = Number($v('suInc')); if (!inc || inc <= 0) { showToast('Enter your monthly income'); return; } const m = getCurrentMonthData(); m.income = inc; m.targetSavingPct = Number($v('suPct')) || 20; const ch = [...document.querySelectorAll('.suCat:checked')].map(x => SETUP_CATS[x.value]); m.categories = ch.map((c, i) => ({ id: 'cat_' + Date.now() + i, name: c[0], icon: c[1], limit: Math.round(inc * c[2] / 100 / 100) * 100, color: c[3] })); appState.setupDone = true; saveState(); closeModal(); renderAll(); };
+
+  /* ---- [BACK BUTTON] ---- */
+  let modalPushed = false, ignorePop = 0, navSilent = false;
+  const activeTabName = () => { const e = document.querySelector('.tab-pane.active'); return e ? e.id.replace('tab-', '') : 'budget'; };
+  let tabPushed = false;
+  const navPush = (tab) => { if (navSilent) return; if (tab !== 'budget' && activeTabName() === 'budget') { history.pushState({ t: 1 }, ''); tabPushed = true; } else if (tab === 'budget' && tabPushed) { tabPushed = false; ignorePop++; history.back(); } };
+  const hideModalNow = () => { const b = document.getElementById('modalBackdrop'); b.classList.remove('open'); clearTimeout(window._mTimer); window._mTimer = setTimeout(() => { b.style.display = 'none'; }, 260); };
+  const exitApp = () => { modalPushed = false; ignorePop = 1; hideModalNow(); try { window.close(); } catch (e) {} history.go(-3); };
+  window.addEventListener('popstate', () => {
+    if (ignorePop > 0) { ignorePop--; return; }
+    if (modalPushed) { modalPushed = false; hideModalNow(); return; }
+    if (document.getElementById('lockScreen').style.display !== 'none' && document.getElementById('lockScreen').style.display !== '') { history.pushState({ g: 1 }, ''); return; }
+    if (activeTabName() !== 'budget') { tabPushed = false; navSilent = true; switchMainTab('budget'); navSilent = false; return; }
+    history.pushState({ g: 1 }, '');
+    openModal(head('Close the app?') + `<div style="display:flex;gap:10px;margin-top:10px"><button class="btn-secondary" style="flex:1;justify-content:center" onclick="closeModal()">No</button><button class="btn-primary" style="flex:1;justify-content:center" onclick="exitApp()">Yes, close</button></div>`);
+  });
+  history.replaceState({ h: 1 }, ''); history.pushState({ g: 1 }, '');
+
   window.onload = () => {
     loadState();
     applyTheme();
     initBackupDefaults();
     buildKeypad();
     renderAll();
-    if (appState.pin) showLock(); else setTimeout(showDueAlert, 1500);
+    if (appState.pin) showLock(); else setTimeout(() => { if (appState.setupDone === false) openSetupModal(); else showDueAlert(); }, 1500);
     (() => { const sp = document.getElementById('splash'); if (!sp) return; if (appState.noAnim) { sp.remove(); return; } setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 400); }, 1250); })();
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
