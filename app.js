@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'smart_budget_india_v2';
-  const APP_VERSION = '6.3';
-  const WHATS_NEW = ['Category page: tap a category to open its full details, daily chart and entries by date', 'New right-side menu that slides in, grouped into Tools, Money, Data and App', 'About screen in the menu'];
+  const APP_VERSION = '6.4';
+  const WHATS_NEW = ['Plans: Pending, Completed and All views', 'Plan details screen with Add charge and a full history of changes', 'Side menu: thin separator lines between items and groups'];
 
   const formatINR = (num) => {
     const val = Math.round(Number(num) || 0);
@@ -502,11 +502,14 @@ const STORAGE_KEY = 'smart_budget_india_v2';
 
   const renderUpcomingPlansTab = () => {
     const mData = getCurrentMonthData();
-    const plans = mData.upcomingPlans || [];
+    const allP = mData.upcomingPlans || [];
+    const plans = allP.filter(p => planFilter === 'all' || (planFilter === 'completed' ? p.marked : !p.marked));
 
-    const markedTotal = plans.filter(p => p.marked).reduce((s, p) => s + Number(p.amount), 0);
-    const unmarkedTotal = plans.filter(p => !p.marked).reduce((s, p) => s + Number(p.amount), 0);
-    const unmarkedCount = plans.filter(p => !p.marked).length;
+    const markedTotal = allP.filter(p => p.marked).reduce((s, p) => s + Number(p.amount), 0);
+    const unmarkedTotal = allP.filter(p => !p.marked).reduce((s, p) => s + Number(p.amount), 0);
+    const unmarkedCount = allP.filter(p => !p.marked).length;
+    const pc = (v, t, n) => `<button class="btn-secondary" style="padding:6px 14px;font-size:.78rem;${planFilter === v ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="planFilter='${v}';renderUpcomingPlansTab()">${t} (${n})</button>`;
+    document.getElementById('planFilterChips').innerHTML = pc('pending', 'Pending', unmarkedCount) + pc('completed', 'Completed', allP.length - unmarkedCount) + pc('all', 'All', allP.length);
 
     document.getElementById('plansMarkedTotal').textContent = formatINR(markedTotal);
     document.getElementById('plansUnmarkedTotal').textContent = formatINR(unmarkedTotal);
@@ -521,7 +524,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
 
     const container = document.getElementById('upcomingPlansContainer');
     if (!plans.length) {
-      container.innerHTML = `<div class="empty-state">No upcoming plans or bills added yet. Tap <strong>+ Add Plan</strong>.</div>`;
+      container.innerHTML = `<div class="empty-state">${allP.length ? 'No ' + planFilter + ' plans.' : 'No upcoming plans or bills added yet. Tap <strong>+ Add Plan</strong>.'}</div>`;
       return;
     }
 
@@ -529,7 +532,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
       <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px;">
         <div style="display:flex; align-items:center; gap:11px; flex:1; min-width:0;">
           <input type="checkbox" ${p.marked ? 'checked' : ''} onchange="togglePlanMarked('${p.id}')" style="width:20px; height:20px; accent-color:var(--accent); cursor:pointer; flex-shrink:0;" title="Check to include in total spent" />
-          <div style="min-width:0;">
+          <div style="min-width:0;cursor:pointer;flex:1" onclick="openPlanDetail('${p.id}')">
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <span style="font-weight:800; font-size:0.92rem; ${p.marked ? 'text-decoration:line-through; opacity:0.7;' : ''}">${escapeHtml(p.title)}</span>
               ${getReminderBadgeHtml(p)}
@@ -546,6 +549,27 @@ const STORAGE_KEY = 'smart_budget_india_v2';
         </div>
       </div>
     `).join('');
+  };
+
+  /* ---- [PLAN DETAIL] details, extra charge, history ---- */
+  const openPlanDetail = (id) => {
+    const p = (getCurrentMonthData().upcomingPlans || []).find(x => x.id === id); if (!p) return;
+    const cat = getCurrentMonthData().categories.find(x => x.id === p.catId), row = (l, v) => `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border-color);font-size:.86rem"><span style="color:var(--text-secondary)">${l}</span><strong>${v}</strong></div>`;
+    openModal(head(escapeHtml(p.title)) + `<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px"><div style="font-size:1.6rem;font-weight:800">${formatINR(p.amount)}</div><span style="font-size:.74rem;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid var(--border-color)">${p.marked ? 'Completed' : 'Pending'}</span></div>
+      ${row('Date', p.date || 'Not set')}${row('Category', cat ? escapeHtml(cat.name) : 'Not set')}${p.note ? row('Note', escapeHtml(p.note)) : ''}
+      <div style="display:flex;gap:10px;margin:12px 0"><button class="btn-primary" style="flex:1;justify-content:center;padding:11px" onclick="closeModal();setTimeout(()=>togglePlanMarked('${p.id}'),140)">${p.marked ? 'Mark as pending' : 'Mark as done'}</button><button class="btn-secondary" style="flex:1;justify-content:center;padding:11px" onclick="closeModal();setTimeout(()=>openUpcomingPlanModal('${p.id}'),140)">Edit</button></div>
+      <div style="font-weight:800;font-size:.84rem;margin:6px 0">Add charge</div>
+      <div style="display:flex;gap:8px"><input id="pcAmt" type="number" inputmode="decimal" min="1" class="form-input" placeholder="Amount" style="flex:1"><input id="pcNote" class="form-input" placeholder="Note (e.g. late fee)" style="flex:1.4"></div>
+      <button class="btn-secondary" style="justify-content:center;padding:10px;width:100%;margin-top:8px" onclick="addPlanCharge('${p.id}')">Add to plan amount</button>
+      <div style="font-weight:800;font-size:.84rem;margin:16px 0 6px">History</div>
+      <div style="max-height:30vh;overflow-y:auto">${(p.history || []).length ? p.history.map(x => `<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-color);font-size:.8rem"><span>${escapeHtml(x.text)}</span><span style="color:var(--text-muted);white-space:nowrap">${fmtTs(x.ts)}</span></div>`).join('') : '<div style="font-size:.8rem;color:var(--text-muted)">No history yet. Changes from now on will be recorded here.</div>'}</div>`);
+  };
+  const addPlanCharge = (id) => {
+    const p = (getCurrentMonthData().upcomingPlans || []).find(x => x.id === id), amt = Number($v('pcAmt')), note = $v('pcNote').trim();
+    if (!p || !(amt > 0)) { showToast('Enter a valid charge amount'); return; }
+    p.amount = Number(p.amount) + amt; planLog(p, 'charge', `+${money(amt)}${note ? ' · ' + note : ''} (now ${money(p.amount)})`);
+    if (p.marked) syncPlanExpense(p);
+    saveState(); renderAll(); openPlanDetail(id); showToast('Charge added');
   };
 
   const switchUdhaarSubTab = (sub) => {
@@ -992,6 +1016,9 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     setTimeout(() => updatePlanWarn(planId || ''), 0);
   };
 
+  let planFilter = 'pending';
+  const planLog = (p, type, text) => { (p.history = p.history || []).unshift({ id: 'ph_' + Date.now() + Math.random().toString(36).slice(2, 5), type, text, ts: Date.now() }); };
+  const fmtTs = (ts) => new Date(ts).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
   const saveUpcomingPlan = (planId = '') => {
     const title = document.getElementById('planTitle').value.trim();
     const amount = Number(document.getElementById('planAmt').value);
@@ -1010,6 +1037,9 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     if (planId) {
       const existing = mData.upcomingPlans.find(p => p.id === planId);
       if (existing) {
+        if (Number(existing.amount) !== amount) planLog(existing, 'amount', `Amount ${money(existing.amount)} → ${money(amount)}`);
+        if ((existing.date || '') !== date) planLog(existing, 'date', `Date ${existing.date || 'none'} → ${date || 'none'}`);
+        if (existing.title !== title) planLog(existing, 'edit', `Title changed to "${title}"`);
         existing.title = title;
         existing.amount = amount;
         existing.date = date;
@@ -1026,7 +1056,8 @@ const STORAGE_KEY = 'smart_budget_india_v2';
         date,
         marked: false,
         note,
-        catId
+        catId,
+        history: [{ id: 'ph_' + Date.now(), type: 'created', text: 'Plan created · ' + money(amount), ts: Date.now() }]
       });
       showToast('Upcoming plan added!');
     }
@@ -1042,6 +1073,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     if (plan && !plan.marked && !plan.catId) { openPlanCatPick(planId); return; }
     if (plan) {
       plan.marked = !plan.marked;
+      planLog(plan, plan.marked ? 'marked' : 'unmarked', plan.marked ? 'Marked as done' : 'Marked as pending');
       syncPlanExpense(plan);
       saveState();
       renderAll();
@@ -2319,7 +2351,7 @@ ${n.body}`;
     window._rrc = false;
     const plan = (getCurrentMonthData().upcomingPlans || []).find(p => p.id === planId);
     if (!plan) return;
-    plan.catId = skip ? '' : $v('pickCat'); plan.marked = true; syncPlanExpense(plan);
+    plan.catId = skip ? '' : $v('pickCat'); plan.marked = true; planLog(plan, 'marked', 'Marked as done'); syncPlanExpense(plan);
     saveState(); closeModal(); renderAll(); showToast('Plan mark ho gaya ✓');
   };
 
