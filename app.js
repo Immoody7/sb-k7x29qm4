@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'smart_budget_india_v2';
-  const APP_VERSION = '6.1';
-  const WHATS_NEW = ['Close dialog now in the center, and Yes closes the app properly', 'Udhaar: separate wording for Lent and Borrowed due dates', 'Plan mark: cancelling the category box now shows the plan unmarked', 'Dashboard donut: every category gets its own color', 'Tap the logo to go to the dashboard', 'Version numbering: 6.1, 6.2 ... 6.10, then 7.0'];
+  const APP_VERSION = '6.3';
+  const WHATS_NEW = ['Category page: tap a category to open its full details, daily chart and entries by date', 'New right-side menu that slides in, grouped into Tools, Money, Data and App', 'About screen in the menu'];
 
   const formatINR = (num) => {
     const val = Math.round(Number(num) || 0);
@@ -388,7 +388,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
       else if (limit > 0 && spent >= limit * 0.8) barColor = 'var(--warning)';
 
       return `
-        <div class="cat-card" onclick="openCategoryDetailModal('${cat.id}')">
+        <div class="cat-card" onclick="openCategoryPage('${cat.id}')">
           <div class="cat-top">
             <div class="cat-info">
               <div class="cat-icon">${cat.icon || '📁'}</div>
@@ -841,6 +841,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     renderUpcomingPlansTab();
     renderUdhaarTab();
     renderTxns();
+    renderCatPage();
     renderDashUdhaar();
     renderBell();
     renderNotesTab();
@@ -1265,7 +1266,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     mData.expenses = mData.expenses.filter(e => e.id !== expId);
     saveState();
     renderAll();
-    openCategoryDetailModal(catId);
+    if (activeTabName() !== 'catdetail') openCategoryDetailModal(catId);
     showToast('Expense removed');
   };
 
@@ -2164,11 +2165,20 @@ ${n.body}`;
     const lines = mo.categories.map(c => [c, mo.expenses.filter(e => e.catId === c.id).reduce((s, e) => s + Number(e.amount), 0)]).filter(x => x[1] > 0).map(([c, v]) => `${c.icon} ${c.name}: ${money(v)} / ${money(c.limit)}`);
     return `📊 SmartBudget - ${formatMonthDisplay(ym)}\n\nIncome: ${money(mt.income)}\nKharch: ${money(mt.totalExpenses)}\nBachat: ${money(mt.netActualSaving)} (${mt.actualSavingPct}%)\n\n${lines.join('\n')}`;
   };
-  const openReportModal = () => openModal(head('📤 Monthly Report') + `<pre style="white-space:pre-wrap;font-size:.8rem;background:var(--bg-card-alt);padding:12px;border-radius:12px;max-height:40vh;overflow:auto">${escapeHtml(buildReport())}</pre>
-    <div style="font-size:.76rem;color:var(--text-muted);margin-top:10px">PDF mein summary, categories aur extra income hamesha aate hain. Baaki chuno:</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.82rem;margin-top:6px"><label><input type="checkbox" id="pdfExp" checked> All expenses</label><label><input type="checkbox" id="pdfPlans" checked> Upcoming plans</label><label><input type="checkbox" id="pdfFunds" checked> Funds</label><label><input type="checkbox" id="pdfUd" checked> Udhaar</label><label><input type="checkbox" id="pdfNotes"> Notes (private)</label></div>
-    <button class="btn-primary" style="justify-content:center;padding:12px;width:100%;margin-top:10px" onclick="sharePDF()">📄 Share as PDF</button>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px"><button class="btn-secondary" style="justify-content:center;padding:12px" onclick="shareReport()">Share Text</button><button class="btn-secondary" style="justify-content:center;padding:12px" onclick="copyReport()">Copy</button></div>`);
+  const rpSet = (p) => { rpPeriod = p; document.querySelectorAll('.rpChip').forEach(b => { const on = b.dataset.p === p; b.style.background = on ? 'var(--accent-soft)' : ''; b.style.color = on ? 'var(--accent)' : ''; b.style.borderColor = on ? 'var(--accent)' : ''; }); };
+  const openReportModal = () => {
+    const cb = (id, t, on = true) => `<label style="display:flex;align-items:center;gap:8px;font-size:.85rem;padding:5px 0"><input type="checkbox" id="${id}" ${on ? 'checked' : ''}> ${t}</label>`;
+    openModal(head('Report') + `<div style="font-weight:800;font-size:.82rem;margin-bottom:6px">Period</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${PERIODS.map(([v, t]) => `<button class="btn-secondary rpChip" data-p="${v}" style="padding:6px 12px;font-size:.76rem" onclick="rpSet('${v}')">${t}</button>`).join('')}</div>
+      <div style="font-weight:800;font-size:.82rem;margin:14px 0 4px">Include</div>
+      ${cb('rpSum', 'Summary')}${cb('rpCats', 'Category-wise budget')}
+      <div style="font-size:.78rem;color:var(--text-secondary);margin-top:4px">Transactions</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:8px">${cb('rpTx_out', 'Expenses')}${cb('rpTx_inc', 'Income')}${cb('rpTx_fund', 'Funds')}${cb('rpTx_ud', 'Udhaar')}</div>
+      ${cb('rpFunds', 'Funds overview', false)}${cb('rpUd', 'Udhaar overview', false)}${cb('rpPlans', 'Upcoming plans', false)}${cb('rpNotes', 'Notes', false)}
+      <button class="btn-primary" style="justify-content:center;padding:12px;width:100%;margin-top:12px" onclick="sharePDF()">Generate PDF</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px"><button class="btn-secondary" style="justify-content:center;padding:12px" onclick="shareReport()">Share text</button><button class="btn-secondary" style="justify-content:center;padding:12px" onclick="copyReport()">Copy text</button></div>`);
+    rpSet(rpPeriod);
+  };
   const copyReport = () => { const ta = document.createElement('textarea'); ta.value = buildReport(); document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); showToast('Copied 📋'); };
   const shareReport = async () => { try { if (navigator.share) await navigator.share({ text: buildReport() }); else { window.open('https://wa.me/?text=' + encodeURIComponent(buildReport())); } } catch (e) {} };
 
@@ -2190,26 +2200,36 @@ ${n.body}`;
     const gap = (n = 6) => { y += n; };
 
     newPage(); g.fillStyle = acc; g.fillRect(0, 0, 595, 84);
-    g.fillStyle = '#fff'; F('bold', 24); g.fillText('SmartBudget Report', 32, 42); F('normal', 14); g.fillText(`${formatMonthDisplay(ym)}  ·  Generated ${todayStr()}`, 32, 66); y = 112;
+    g.fillStyle = '#fff'; F('bold', 24); g.fillText('SmartBudget Report', 32, 42); F('normal', 14); g.fillText(`${periodLabel(o.period || 'month')}  ·  Generated ${todayStr()}`, 32, 66); y = 112;
     [['Total Income', mt.income, '#0f172a'], ['Total Spent', mt.totalExpenses, '#dc2626'], ['Net Saved', mt.netActualSaving, mt.netActualSaving >= 0 ? '#059669' : '#dc2626'], ['Unspent Cash', mt.unspentCash, '#0f172a']].forEach(([l, v, c], i) => {
       const x = 32 + i * 135; g.fillStyle = '#f1f5f9'; g.fillRect(x, y, 126, 56); g.fillStyle = '#64748b'; F('normal', 10.5); g.fillText(l, x + 9, y + 18); g.fillStyle = c; F('bold', 16); g.fillText(money(v), x + 9, y + 42); });
     y += 80;
     const extra = (mo.extraIncome || []).reduce((s, x) => s + Number(x.amount), 0), catExp = mo.expenses.reduce((s, e) => s + Number(e.amount), 0), planExp = mt.totalExpenses - catExp;
-    sec('Summary');
+    if (o.sum) {
+    sec('Summary · ' + formatMonthDisplay(ym));
     row('Base income / salary', money(mo.income)); if (extra) row('Extra income', money(extra));
     row('Expenses (entries)', money(catExp)); row('Marked upcoming plans', money(planExp)); row('Total spent', money(mt.totalExpenses), '#dc2626', 'bold');
     row('Saved in funds this month', money(mt.netFundsThisMonth)); row('Salary savings', money(mt.salarySavings));
     row(`Saving target (${mt.targetPct}%)`, money(mt.targetAmt)); row('Actual saving', `${money(mt.netActualSaving)} (${mt.actualSavingPct}%)`, mt.netActualSaving >= 0 ? '#059669' : '#dc2626', 'bold');
+    }
 
-    sec('Category budget');
+    if (o.cats) {
+    sec('Category budget · ' + formatMonthDisplay(ym));
     mo.categories.forEach(c => { const v = mo.expenses.filter(e => e.catId === c.id).reduce((s, e) => s + Number(e.amount), 0), p = c.limit > 0 ? v / c.limit : 0;
       row(`${c.icon} ${c.name}`, `${money(v)} / ${money(c.limit)}  (${Math.round(p * 100)}%)`, p >= 1 ? '#dc2626' : '#0f172a'); bar(p); });
+    }
 
-    if (extra) { sec('Extra income'); mo.extraIncome.forEach(x => row(`${x.date}   ${x.note}`, money(x.amount), '#059669')); }
+    if (o.sum && extra) { sec('Extra income'); mo.extraIncome.forEach(x => row(`${x.date}   ${x.note}`, money(x.amount), '#059669')); }
 
-    if (o.exp) { sec(`All expenses (${mo.expenses.length})`);
-      mo.expenses.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach(e => { const c = mo.categories.find(x => x.id === e.catId); need(18); F('normal', 10.5); g.fillStyle = '#64748b'; g.fillText(e.date || '', 32, y); g.fillStyle = '#0f172a'; g.fillText(fit(c ? c.icon + ' ' + c.name : '', 120), 92, y); g.fillText(fit(e.note, 250), 218, y); g.textAlign = 'right'; g.fillText(money(e.amount), 563, y); g.textAlign = 'left'; y += 16; });
-      if (!mo.expenses.length) row('No expenses this month', ''); }
+    if (o.tx && o.tx.length) {
+      const rows = collectTxns(o.period).filter(r => o.tx.includes(r.k)), lab = { out: 'Expense', inc: 'Income', fund: 'Fund', ud: 'Udhaar' };
+      sec(`Transactions · ${periodLabel(o.period)} (${rows.length})`);
+      need(24); g.fillStyle = '#f1f5f9'; g.fillRect(32, y - 12, 531, 18); g.fillStyle = '#475569'; F('bold', 10); g.fillText('DATE', 38, y); g.fillText('TYPE', 108, y); g.fillText('DETAILS', 170, y); g.textAlign = 'right'; g.fillText('AMOUNT', 557, y); g.textAlign = 'left'; y += 14;
+      let tin = 0, tout = 0;
+      rows.forEach((r, i) => { need(20); if (i % 2) { g.fillStyle = '#f8fafc'; g.fillRect(32, y - 12, 531, 18); } F('normal', 10); g.fillStyle = '#64748b'; g.fillText(r.date || '', 38, y); g.fillStyle = '#0f172a'; g.fillText(lab[r.k], 108, y); g.fillText(fit(r.title + (r.sub ? ' · ' + r.sub : ''), 270), 170, y);
+        g.fillStyle = r.k === 'out' ? '#dc2626' : r.k === 'inc' ? '#059669' : '#0f172a'; g.textAlign = 'right'; g.fillText((r.k === 'out' ? '-' : r.k === 'inc' ? '+' : '') + money(r.amt), 557, y); g.textAlign = 'left'; y += 18; if (r.k === 'out') tout += r.amt; if (r.k === 'inc') tin += r.amt; });
+      if (!rows.length) row('No transactions in this period', ''); else { gap(4); row('Total income', money(tin), '#059669', 'bold'); row('Total expense', money(tout), '#dc2626', 'bold'); }
+    }
 
     if (o.plans) { sec('Upcoming plans'); (mo.upcomingPlans || []).forEach(p => { row(`${p.title}  ·  ${p.date || ''}`, `${money(p.amount)}  ${p.marked ? '✓ counted' : '• pending'}`, p.marked ? '#0f172a' : '#64748b', 'bold'); if (p.note) wrap(p.note, 40, 520); });
       if (!(mo.upcomingPlans || []).length) row('No plans this month', ''); }
@@ -2249,9 +2269,9 @@ ${n.body}`;
   };
   const sharePDF = async () => {
     const ck = id => (document.getElementById(id) || {}).checked;
-    const cvs = buildPDF({ exp: ck('pdfExp'), plans: ck('pdfPlans'), funds: ck('pdfFunds'), ud: ck('pdfUd'), notes: ck('pdfNotes') });
+    const cvs = buildPDF({ period: rpPeriod, sum: ck('rpSum'), cats: ck('rpCats'), tx: ['out', 'inc', 'fund', 'ud'].filter(k => ck('rpTx_' + k)), plans: ck('rpPlans'), funds: ck('rpFunds'), ud: ck('rpUd'), notes: ck('rpNotes') });
     const jpgs = cvs.map(cv => { const bin = atob(cv.toDataURL('image/jpeg', 0.9).split(',')[1]), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; });
-    const blob = makePDF(jpgs, 1190, 1684), name = `SmartBudget_${appState.selectedMonth}.pdf`, file = new File([blob], name, { type: 'application/pdf' });
+    const blob = makePDF(jpgs, 1190, 1684), name = `SmartBudget_${rpPeriod}_${todayStr()}.pdf`, file = new File([blob], name, { type: 'application/pdf' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e.name === 'AbortError') return; } }
     const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
@@ -2338,14 +2358,6 @@ ${n.body}`;
   };
 
   /* ---- [MENU] upar ☰ ---- */
-  const openMenu = () => {
-    const it = (ic, t, fn) => `<button class="tool-btn" onclick="${fn}"><span>${ic}</span>${t}</button>`;
-    openModal(head('☰ Menu') + `<div class="menu-grid">
-      ${it('<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01"/></svg>', 'Calculator', "closeModal();switchMainTab('calc')")}${it('<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>', 'Notes', "closeModal();switchMainTab('notes')")}${it('<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>', 'Search', 'openSearchModal()')}
-      ${it('<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>', 'Extra Income', 'openExtraIncomeModal()')}${it('<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>', 'Shopping', 'openShoppingModal()')}${it('<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>', 'Split', 'openSplitModal()')}
-      ${it('<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>', 'Report', 'openReportModal()')}${it('<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z"/></svg>', 'Themes', 'openThemeModal()')}${it('<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>', 'Settings', "closeModal();switchMainTab('settings')")}${it('<svg width=\'22\' height=\'22\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'1.9\' stroke-linecap=\'round\' stroke-linejoin=\'round\' viewBox=\'0 0 24 24\'><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg>', 'Insights', 'openInsights()')}${it('<svg width=\'22\' height=\'22\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'1.9\' stroke-linecap=\'round\' stroke-linejoin=\'round\' viewBox=\'0 0 24 24\'><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>', 'Recurring', 'openRecurringModal()')}</div>`);
-  };
-
   /* ---- [PLANS] budget check: pending plans se budget bachega ya nahi ---- */
   const planCheckData = (extraAmt = 0, extraCat = '', skipId = '') => {
     const m = getCurrentMonthData(), mt = getMonthMetrics(appState.selectedMonth);
@@ -2425,23 +2437,35 @@ ${n.body}`;
   /* ==========================================================================
      [TRANSACTIONS] sab kuch ek list mein
      ========================================================================== */
-  let txQ = '', txType = 'all', txAllMonths = false;
+  let txQ = '', txType = 'all', txPeriod = 'month', rpPeriod = 'month';
+  const pad2 = (n) => String(n).padStart(2, '0'), ymdOf = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const PERIODS = [['today', 'Today'], ['yesterday', 'Yesterday'], ['7d', 'Last 7 days'], ['month', 'This month'], ['lastmonth', 'Last month'], ['all', 'All time']];
+  const prevMonthKey = () => { const [y, m] = appState.selectedMonth.split('-').map(Number); return ymdOf(new Date(y, m - 2, 1)).slice(0, 7); };
+  const periodLabel = (p) => p === 'month' ? formatMonthDisplay(appState.selectedMonth) : p === 'lastmonth' ? formatMonthDisplay(prevMonthKey()) : ((PERIODS.find(x => x[0] === p) || [])[1] || '');
+  const inPeriod = (date, p) => {
+    if (p === 'all') return true; if (!date) return false; const t = todayStr(), n = new Date();
+    if (p === 'today') return date === t;
+    if (p === 'yesterday') { n.setDate(n.getDate() - 1); return date === ymdOf(n); }
+    if (p === '7d') { n.setDate(n.getDate() - 6); return date >= ymdOf(n) && date <= t; }
+    if (p === 'month') return date.slice(0, 7) === appState.selectedMonth;
+    if (p === 'lastmonth') return date.slice(0, 7) === prevMonthKey();
+    return true;
+  };
   const TX_ICON = {
     out: '<path d="M7 17 17 7M8 7h9v9"/>', inc: '<path d="M17 7 7 17M16 17H7V8"/>',
     fund: '<path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>', ud: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>'
   };
-  const collectTxns = () => {
+  const collectTxns = (period = txPeriod) => {
     const rows = [], cur = appState.selectedMonth;
     Object.keys(appState.months).forEach(ym => {
-      if (!txAllMonths && ym !== cur) return;
       const m = appState.months[ym];
       if (Number(m.income) > 0) rows.push({ k: 'inc', date: ym + '-01', title: 'Monthly income', sub: 'Salary', amt: Number(m.income), sign: 1 });
       (m.extraIncome || []).forEach(x => rows.push({ k: 'inc', date: x.date || ym + '-01', title: x.note || 'Extra income', sub: 'Income', amt: Number(x.amount), sign: 1, del: x.id, tm: x.time || timeFromId(x.id) }));
       (m.expenses || []).forEach(e => { const c = (m.categories || []).find(c => c.id === e.catId); rows.push({ k: 'out', date: e.date || ym + '-01', title: e.note || (c ? c.name : 'Kharch'), sub: c ? c.name : 'Kharch', amt: Number(e.amount), sign: -1, exp: e.id, cat: e.catId, tm: e.time || timeFromId(e.id) }); });
     });
-    (appState.funds || []).forEach(f => (f.history || []).forEach(h => { if (!txAllMonths && h.month !== cur) return; rows.push({ k: 'fund', date: h.date, title: f.name, sub: h.type === 'add' ? 'Fund mein jama' : 'Fund se nikala', amt: Number(h.amount), sign: h.type === 'add' ? 0 : 0, tag: h.type === 'add' ? '+' : '−', tm: h.time || timeFromId(h.id) }); }));
-    appState.udhaar.forEach(u => (u.history || []).forEach(h => { if (!txAllMonths && (h.date || '').slice(0, 7) !== cur) return; rows.push({ k: 'ud', date: h.date || '', title: u.person, sub: `${u.type === 'lent' ? 'Udhaar diya' : 'Udhaar liya'} · ${h.action || ''}`, amt: Number(h.amount), sign: 0, tm: h.time || timeFromId(h.id) }); }));
-    return rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    (appState.funds || []).forEach(f => (f.history || []).forEach(h => { rows.push({ k: 'fund', date: h.date, title: f.name, sub: h.type === 'add' ? 'Fund mein jama' : 'Fund se nikala', amt: Number(h.amount), sign: h.type === 'add' ? 0 : 0, tag: h.type === 'add' ? '+' : '−', tm: h.time || timeFromId(h.id) }); }));
+    appState.udhaar.forEach(u => (u.history || []).forEach(h => { rows.push({ k: 'ud', date: h.date || '', title: u.person, sub: `${u.type === 'lent' ? 'Udhaar diya' : 'Udhaar liya'} · ${h.action || ''}`, amt: Number(h.amount), sign: 0, tm: h.time || timeFromId(h.id) }); }));
+    return rows.filter(r => inPeriod(r.date, period)).sort((x, y) => (y.date || '').localeCompare(x.date || ''));
   };
   const renderTxns = () => {
     const el = document.getElementById('txList'); if (!el) return;
@@ -2449,7 +2473,7 @@ ${n.body}`;
     document.getElementById('txIn').textContent = money(all.filter(r => r.k === 'inc').reduce((t, r) => t + r.amt, 0));
     document.getElementById('txOut').textContent = money(all.filter(r => r.k === 'out').reduce((t, r) => t + r.amt, 0));
     const chip = (v, t) => `<button class="btn-secondary" style="padding:6px 12px;font-size:.76rem;white-space:nowrap;${txType === v ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="txType='${v}';renderTxns()">${t}</button>`;
-    document.getElementById('txChips').innerHTML = chip('all', 'Sab') + chip('out', 'Kharch') + chip('inc', 'Income') + chip('fund', 'Fund') + chip('ud', 'Udhaar') + `<button class="btn-secondary" style="padding:6px 12px;font-size:.76rem;white-space:nowrap" onclick="txAllMonths=!txAllMonths;renderTxns()">${txAllMonths ? 'Sab mahine' : 'Is mahine'} ⇄</button>`;
+    document.getElementById('txChips').innerHTML = chip('all', 'Sab') + chip('out', 'Kharch') + chip('inc', 'Income') + chip('fund', 'Fund') + chip('ud', 'Udhaar') ; document.getElementById('txPeriods').innerHTML = PERIODS.map(([v, t]) => `<button class="btn-secondary" style="padding:6px 12px;font-size:.76rem;white-space:nowrap;${txPeriod === v ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="txPeriod='${v}';renderTxns()">${t}</button>`).join('');
     const q = txQ.trim().toLowerCase();
     const rows = all.filter(r => (txType === 'all' || r.k === txType) && (!q || `${r.title} ${r.sub} ${r.amt}`.toLowerCase().includes(q)));
     if (!rows.length) { el.innerHTML = '<div class="empty-state">Koi transaction nahi mila.</div>'; return; }
@@ -2595,6 +2619,64 @@ ${n.body}`;
 
   const goHome = () => { switchMainTab('budget'); window.scrollTo(0, 0); document.querySelectorAll('main,.app-main').forEach(e => { e.scrollTop = 0; }); };
 
+
+  /* ==========================================================================
+     [CATEGORY PAGE] poora naya screen, category ki saari details
+     ========================================================================== */
+  let catPageId = null;
+  const openCategoryPage = (catId) => { catPageId = catId; renderCatPage(true); switchMainTab('catdetail'); window.scrollTo(0, 0); };
+  const renderCatPage = (force) => {
+    const el = document.getElementById('tab-catdetail'); if (!el || (!force && activeTabName() !== 'catdetail')) return;
+    const m = getCurrentMonthData(), cat = (m.categories || []).find(x => x.id === catPageId);
+    if (!cat) { if (activeTabName() === 'catdetail') goBack(); return; }
+    const list = m.expenses.filter(e => e.catId === cat.id).sort((p, q) => (q.date || '').localeCompare(p.date || ''));
+    const spent = list.reduce((s, e) => s + Number(e.amount), 0), lim = Number(cat.limit) || 0, pct = lim ? Math.round(spent / lim * 100) : 0, left = lim - spent;
+    const [yy, mm] = appState.selectedMonth.split('-').map(Number), days = new Date(yy, mm, 0).getDate(), per = Array(days).fill(0);
+    list.forEach(e => { const dd = Number((e.date || '').slice(8, 10)); if (dd >= 1 && dd <= days) per[dd - 1] += Number(e.amount); });
+    const mx = Math.max(1, ...per), groups = {};
+    list.forEach(e => { (groups[e.date || 'No date'] = groups[e.date || 'No date'] || []).push(e); });
+    const stat = (l, v) => `<div style="flex:1"><div style="font-size:.68rem;color:var(--text-muted)">${l}</div><div style="font-weight:800;font-size:.95rem">${v}</div></div>`;
+    el.innerHTML = `<div class="page-title" style="display:flex;align-items:center;gap:10px"><button class="menu-btn" onclick="goBack()" aria-label="Back">←</button>${escapeHtml(cat.name)}<span style="margin-left:auto;font-size:.76rem;font-weight:600;color:var(--text-muted)">${formatMonthDisplay(appState.selectedMonth)}</span></div>
+      <div class="card" style="padding:16px">
+        <div style="display:flex;gap:10px">${stat('Spent', formatINR(spent))}${stat('Limit', lim ? formatINR(lim) : 'Not set')}${stat(left >= 0 ? 'Remaining' : 'Over by', lim ? formatINR(Math.abs(left)) : '-')}</div>
+        <div style="height:8px;border-radius:8px;background:var(--bg-card-alt);margin-top:12px;overflow:hidden"><div style="height:100%;width:${Math.min(100, pct)}%;background:var(--accent)"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:.74rem;color:var(--text-secondary);margin-top:6px"><span>${lim ? pct + '% of limit used' : 'No limit set'}</span><span>${list.length} entr${list.length === 1 ? 'y' : 'ies'}${list.length ? ' · avg ' + formatINR(spent / list.length) : ''}</span></div>
+      </div>
+      <div class="card" style="padding:14px"><div style="font-weight:800;font-size:.85rem;margin-bottom:8px">Spending by day</div>
+        <div style="display:flex;align-items:flex-end;gap:2px;height:70px">${per.map(v => `<div style="flex:1;height:${v ? Math.max(4, Math.round(v / mx * 66)) : 2}px;border-radius:3px 3px 0 0;background:${v ? 'var(--accent)' : 'var(--bg-card-alt)'}"></div>`).join('')}</div>
+        <div style="display:flex;justify-content:space-between;font-size:.64rem;color:var(--text-muted);margin-top:4px"><span>1</span><span>${days}</span></div></div>
+      <div style="display:flex;gap:10px"><button class="btn-primary" style="flex:1;justify-content:center;padding:12px" onclick="openQuickExpenseModal('${cat.id}')">Add expense</button><button class="btn-secondary" style="flex:1;justify-content:center;padding:12px" onclick="openCategoryModal('${cat.id}')">Edit category</button></div>
+      ${Object.keys(groups).length ? Object.keys(groups).map(dt => { const g = groups[dt], tot = g.reduce((s, e) => s + Number(e.amount), 0), lab = /^\d{4}-/.test(dt) ? new Date(dt + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) : dt;
+        return `<div><div style="display:flex;justify-content:space-between;font-size:.76rem;font-weight:700;color:var(--text-secondary);margin:6px 2px"><span>${lab}</span><span>${formatINR(tot)}</span></div>${g.map(e => `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:6px"><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(e.note || 'Expense')}</div></div><strong>${formatINR(e.amount)}</strong><button class="btn-secondary" style="padding:5px 9px;font-size:.72rem" onclick="openEditExpenseModal('${e.id}','${cat.id}')">Edit</button><button class="btn-secondary" style="padding:5px 9px;font-size:.72rem" onclick="deleteExpenseEntry('${e.id}','${cat.id}')">Delete</button></div>`).join('')}</div>`; }).join('') : '<div class="empty-state">No expenses in this category yet.</div>'}`;
+  };
+
+  /* ==========================================================================
+     [SIDE MENU] right se slide hone wala menu + About
+     ========================================================================== */
+  let sidePushed = false;
+  const SVG = (p) => `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">${p}</svg>`;
+  const MENU_ACTIONS = { calc: () => switchMainTab('calc'), notes: () => switchMainTab('notes'), shop: () => openShoppingModal(), split: () => openSplitModal(), search: () => openSearchModal(), insights: () => openInsights(), recurring: () => openRecurringModal(), extra: () => openExtraIncomeModal(), report: () => openReportModal(), backup: () => switchMainTab('settings'), settings: () => switchMainTab('settings'), themes: () => openThemeModal(), about: () => openAbout() };
+  const menuGo = (k) => { closeMenu(); setTimeout(MENU_ACTIONS[k], 120); };
+  const openMenu = () => {
+    const it = (k, ic, t) => `<button class="sm-item" onclick="menuGo('${k}')">${SVG(ic)}<span>${t}</span></button>`;
+    document.getElementById('sidePanel').innerHTML = `<div class="sm-top"><div class="brand-logo" style="width:44px;height:44px;font-size:1.3rem">₹</div><div><div style="font-weight:800">SmartBudget</div><div style="font-size:.72rem;opacity:.75">Version ${APP_VERSION}</div></div></div>
+      <div class="sm-label">Tools</div>
+      ${it('calc', '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01"/>', 'Calculator')}${it('notes', '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>', 'Notes')}${it('shop', '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/>', 'Shopping list')}${it('split', '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>', 'Split bill')}${it('search', '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>', 'Search')}
+      <div class="sm-label">Money</div>
+      ${it('insights', '<path d="M3 3v18h18M7 14l4-4 3 3 5-6"/>', 'Insights')}${it('recurring', '<path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/>', 'Recurring expenses')}${it('extra', '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>', 'Extra income')}
+      <div class="sm-label">Data</div>
+      ${it('report', '<path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>', 'Report (PDF)')}${it('backup', '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8"/>', 'Backup &amp; Restore')}
+      <div class="sm-label">App</div>
+      ${it('settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>', 'Settings')}${it('themes', '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z"/>', 'Themes')}${it('about', '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>', 'About')}`;
+    document.getElementById('sideRoot').classList.add('open');
+    if (!sidePushed) { history.pushState({ s: 1 }, ''); sidePushed = true; }
+  };
+  const hideMenuNow = () => document.getElementById('sideRoot').classList.remove('open');
+  const closeMenu = () => { hideMenuNow(); if (sidePushed) { sidePushed = false; setTimeout(() => { ignorePop++; history.back(); }, 60); } };
+  const openAbout = () => openModal(head('About') + `<div style="text-align:center;padding:6px 0 4px"><div class="brand-logo" style="width:64px;height:64px;font-size:1.9rem;margin:0 auto 10px">₹</div><div style="font-weight:800;font-size:1.15rem">SmartBudget</div><div style="font-size:.8rem;color:var(--text-secondary)">Version ${APP_VERSION}</div></div>
+    <p style="font-size:.86rem;line-height:1.55;margin:12px 0">A simple personal money manager: monthly budget, category limits, savings funds, upcoming plans, udhaar (lent and borrowed), notes and PDF reports.</p>
+    <div style="font-size:.84rem;line-height:1.6;padding:12px;border-radius:14px;background:var(--bg-card-alt)"><strong>Your data stays on this phone.</strong> Nothing is uploaded to any server. It works offline. Take a backup from Settings regularly, because clearing browser data removes the app data.</div>`);
+
   /* ---- [BACK BUTTON] ---- */
   let modalPushed = false, ignorePop = 0, navSilent = false;
   const activeTabName = () => { const e = document.querySelector('.tab-pane.active'); return e ? e.id.replace('tab-', '') : 'budget'; };
@@ -2607,6 +2689,7 @@ ${n.body}`;
   window.addEventListener('popstate', () => {
     if (exiting) return;
     if (ignorePop > 0) { ignorePop--; return; }
+    if (sidePushed) { sidePushed = false; hideMenuNow(); return; }
     if (document.getElementById('exitDlg').classList.contains('open')) { history.pushState({ g: 1 }, ''); hideExitDlg(); return; }
     if (modalPushed) { modalPushed = false; hideModalNow(); return; }
     if (document.getElementById('lockScreen').style.display !== 'none' && document.getElementById('lockScreen').style.display !== '') { history.pushState({ g: 1 }, ''); return; }
