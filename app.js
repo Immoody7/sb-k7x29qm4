@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'smart_budget_india_v2';
-  const APP_VERSION = '6.6';
-  const WHATS_NEW = ['Tap any transaction for details and history', 'Expenses: Notes and Payment method (Cash, UPI, Card)', 'Insights: income vs expense, comparison with last month, spending by payment method', 'Settings: text size and storage usage, with a storage warning in Alerts', 'The whole app is now in English; Udhaar is now called Loans'];
+  const APP_VERSION = '6.7';
+  const WHATS_NEW = ['Notes: full-screen editor with auto-save, pin to top and word count', 'Salary Savings is now a ledger: Add and Spent entries, one balance, history cannot be edited', 'Loans: Active, Completed and All views, overdue first', 'Transaction details are now view-only, with an Open button to the original screen'];
 
   const formatINR = (num) => {
     const val = Math.round(Number(num) || 0);
@@ -267,7 +267,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
 
     // Total Saved = Net Funds added this month + Monthly Salary Savings
     const netFundsThisMonth = Math.max(0, getMonthlyFundContribution(ym));
-    const salarySavings = Number(mData.salarySavings) || 0;
+    const salarySavings = salaryNet(ym, mData);
     const totalSavedInFunds = netFundsThisMonth + salarySavings;
 
     // Unspent Cash = Income - Total Spent - Saved in Funds & Salary
@@ -422,9 +422,9 @@ const STORAGE_KEY = 'smart_budget_india_v2';
 
   const renderFundsTab = () => {
     const mData = getCurrentMonthData();
-    const salarySavings = Number(mData.salarySavings) || 0;
+    const salarySavings = salaryNet(appState.selectedMonth, mData);
     document.getElementById('displaySalarySavings').textContent = formatINR(salarySavings);
-    const _sp = getSalaryPool(); document.getElementById('salaryTotalLine').innerHTML = `Total saved (all months): <span style="color:var(--success)">${formatINR(_sp.left)}</span><br><span style="font-weight:500;color:var(--text-secondary)">Saved ${formatINR(_sp.saved)} − Spent ${formatINR(_sp.spent)}</span>`;
+    const _sp = getSalaryPool(); document.getElementById('salaryTotalLine').innerHTML = `Balance (all time): <span style="color:var(--success)">${formatINR(_sp.left)}</span><br><span style="font-weight:500;color:var(--text-secondary)">Saved ${formatINR(_sp.saved)} − Spent ${formatINR(_sp.spent)}</span>`;
 
     const totalAll = appState.funds.reduce((s, f) => s + Number(f.balance), 0);
     const monthAdded = Math.max(0, getMonthlyFundContribution(appState.selectedMonth));
@@ -859,28 +859,14 @@ const STORAGE_KEY = 'smart_budget_india_v2';
       );
     }
 
-    notes.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+    notes.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (b.updated || tsFromId(b.id)) - (a.updated || tsFromId(a.id)));
 
     if (!notes.length) {
       container.innerHTML = `<div class="empty-state" style="padding:16px;">No notes found. Tap <strong>+ New Note</strong> to create one.</div>`;
       return;
     }
 
-    container.innerHTML = notes.map(n => `
-      <div class="history-item" style="flex-direction:column; align-items:flex-start; gap:6px; border:${n.pinned ? '1px solid var(--accent)' : '1px solid transparent'};">
-        <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:8px;">
-          <strong style="font-size:0.9rem;">${n.pinned ? '📌 ' : ''}${escapeHtml(n.title)}</strong>
-          <div style="display:flex; gap:5px; flex-shrink:0;">
-            <button class="mini-icon-btn" title="Pin/Unpin" onclick="togglePinNote('${n.id}')">📌</button>
-            <button class="mini-icon-btn" title="Copy Note" onclick="copyNoteText('${n.id}')">📋</button>
-            <button class="mini-icon-btn" title="Edit Note" onclick="openNoteModal('${n.id}')">✏️</button>
-            <button class="mini-icon-btn" style="color:var(--danger);" title="Delete Note" onclick="deleteNote('${n.id}')">🗑️</button>
-          </div>
-        </div>
-        <div style="font-size:0.82rem; color:var(--text-secondary); white-space:pre-wrap; line-height:1.45;">${escapeHtml(n.body)}</div>
-        <div style="font-size:.72rem; color:var(--text-muted); align-self:flex-end;">Updated: ${n.date || ''}</div>
-      </div>
-    `).join('');
+    container.innerHTML = notes.map(n => `<div class="history-item" onclick="openNotePage('${n.id}')" style="flex-direction:column;align-items:flex-start;gap:4px;cursor:pointer;border:${n.pinned ? '1px solid var(--accent)' : '1px solid transparent'}"><div style="display:flex;justify-content:space-between;width:100%;gap:8px"><div style="font-weight:800;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(n.title || 'Untitled')}</div>${n.pinned ? '<span style="font-size:.9rem">📌</span>' : ''}</div><div style="font-size:.8rem;color:var(--text-secondary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line">${escapeHtml((n.body || '').slice(0, 160))}</div><div style="font-size:.7rem;color:var(--text-muted)">${fmtTs(n.updated || tsFromId(n.id) || Date.now())}</div></div>`).join('');
   };
 
   const renderAll = () => {
@@ -964,7 +950,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     showToast('Income & Target updated!');
   };
 
-  const openSalarySavingModal = () => {
+  const _old_openSalarySavingModal = () => {
     const mData = getCurrentMonthData();
     openModal(`
       <div class="modal-header">
@@ -2393,13 +2379,13 @@ ${n.body}`;
   };
 
   /* ---- [SALARY SAVINGS] kul jama, kharch, history ---- */
-  const getSalaryPool = () => {
+  const _old_getSalaryPool = () => {
     let saved = 0, spent = 0;
     Object.values(appState.months).forEach(m => { saved += Number(m.salarySavings) || 0; (m.salarySpend || []).forEach(s => spent += Number(s.amount)); });
     return { saved, spent, left: saved - spent };
   };
-  const findSalarySpend = (id) => { for (const ym of Object.keys(appState.months)) { const s = (appState.months[ym].salarySpend || []).find(x => x.id === id); if (s) return { s, ym }; } return null; };
-  const openSalarySpendModal = (id = '') => {
+  const _old_findSalarySpend = (id) => { for (const ym of Object.keys(appState.months)) { const s = (appState.months[ym].salarySpend || []).find(x => x.id === id); if (s) return { s, ym }; } return null; };
+  const _old_openSalarySpendModal = (id = '') => {
     const f = id ? findSalarySpend(id) : null, s = f ? f.s : null;
     openModal(head(s ? '✏️ Edit spend' : '➖ Spend from Salary Savings') + `
       <p style="font-size:.78rem;color:var(--text-secondary)">Saved now: <strong>${money(getSalaryPool().left)}</strong></p>
@@ -2407,7 +2393,7 @@ ${n.body}`;
       <div class="form-group"><label class="form-label">Note</label><input id="ssNote" class="form-input" value="${s ? escapeHtml(s.note) : ''}" placeholder="e.g. Phone repair"></div>
       <button class="btn-primary" style="justify-content:center;padding:12px" onclick="saveSalarySpend('${id}')">Save</button>`);
   };
-  const saveSalarySpend = (id) => {
+  const _old_saveSalarySpend = (id) => {
     const amt = Number($v('ssAmt')), note = $v('ssNote').trim() || 'Spend';
     if (!amt || amt <= 0) { showToast('Enter a valid amount'); return; }
     const f = id ? findSalarySpend(id) : null;
@@ -2415,12 +2401,12 @@ ${n.body}`;
     else { const m = getCurrentMonthData(); (m.salarySpend = m.salarySpend || []).unshift({ id: 'ss_' + Date.now(), amount: amt, note, date: todayStr() }); }
     saveState(); closeModal(); renderAll(); showToast('Salary savings update ✓');
   };
-  const openSalaryHistoryModal = () => {
+  const _old_openSalaryHistoryModal = () => {
     const rows = []; Object.values(appState.months).forEach(m => (m.salarySpend || []).forEach(s => rows.push(s)));
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     openModal(head('🧾 Spend history') + (rows.length ? rows.map(s => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-color)"><div><div style="font-weight:700;font-size:.85rem">${escapeHtml(s.note)}</div><div style="font-size:.72rem;color:var(--text-muted)">${s.date || ''}</div></div><div style="display:flex;gap:6px;align-items:center"><strong style="color:var(--danger)">${money(s.amount)}</strong><button class="btn-secondary" style="padding:6px 8px" onclick="openSalarySpendModal('${s.id}')">✏️</button><button class="btn-secondary" style="padding:6px 8px" onclick="delSalarySpend('${s.id}')">🗑️</button></div></div>`).join('') : '<p style="color:var(--text-secondary);font-size:.85rem">No spends yet.</p>'));
   };
-  const delSalarySpend = (id) => {
+  const _old_delSalarySpend = (id) => {
     const f = findSalarySpend(id); if (!f) return;
     appState.months[f.ym].salarySpend = appState.months[f.ym].salarySpend.filter(x => x.id !== id);
     saveState(); renderAll(); openSalaryHistoryModal();
@@ -2552,18 +2538,18 @@ ${n.body}`;
   const shHist = (items) => `<div style="font-weight:800;font-size:.84rem;margin:16px 0 4px">History</div>` + items.sort((p, q) => q.ts - p.ts).map(x => `<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-color);font-size:.8rem"><span>${escapeHtml(x.text)}</span><span style="color:var(--text-muted);white-space:nowrap">${x.ts ? fmtTs(x.ts) : ''}</span></div>`).join('');
   const shHead = (sign, amt, tag, title) => `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><div style="font-weight:800;font-size:1.02rem;min-width:0;overflow:hidden;text-overflow:ellipsis">${escapeHtml(title)}</div><span class="fund-tag">${tag}</span></div><div style="font-size:2rem;font-weight:800;margin-bottom:6px">${sign}${formatINR(amt)}</div>`;
   const shBtns = (list) => `<div style="display:flex;gap:10px;margin-top:16px">${list.map(([t, fn, cls]) => `<button class="${cls || 'btn-secondary'}" style="flex:1;justify-content:center;padding:12px" onclick="closeModal();setTimeout(()=>{${fn}},140)">${t}</button>`).join('')}</div>`;
-  const goExpense = (id, del) => { const f = findExpense(id); if (!f) return; if (f.ym !== appState.selectedMonth) { appState.selectedMonth = f.ym; saveState(); renderAll(); } del ? deleteExpenseEntry(id, f.e.catId) : openEditExpenseModal(id, f.e.catId); };
+  const goExpense = (id) => { const f = findExpense(id); if (!f) return; if (f.ym !== appState.selectedMonth) { appState.selectedMonth = f.ym; saveState(); renderAll(); } openCategoryPage(f.e.catId); };
   const openExpenseSheet = (id) => {
     const f = findExpense(id); if (!f) return; const e = f.e, created = tsFromId(e.id);
     openModal(shHead('−', e.amount, 'Expense', e.note || 'Expense') + shRow('Category', f.cat ? escapeHtml(f.cat.name) : '') + shRow('Payment', escapeHtml(e.pay || '')) + shRow('Date', e.date || '') + shRow('Time', e.time || '') + shRow('Notes', e.desc ? escapeHtml(e.desc) : '')
-      + shHist((e.history || []).concat(created ? [{ text: 'Created', ts: created }] : [])) + shBtns([['Edit', `goExpense('${e.id}',false)`], ['Delete', `goExpense('${e.id}',true)`]]));
+      + shHist((e.history || []).concat(created ? [{ text: 'Created', ts: created }] : [])) + (activeTabName() === 'catdetail' ? '' : shBtns([['Open category', `goExpense('${e.id}')`, 'btn-primary']])));
   };
   const openTxnSheet = (i) => {
     const r = _txView[i]; if (!r) return;
     if (r.k === 'out' && r.ex) return openExpenseSheet(r.ex.id);
     if (r.k === 'inc') { const x = r.ei, ts = x ? tsFromId(x.id) : 0;
       return openModal(shHead('+', r.amt, 'Income', r.title) + shRow('Date', r.date || '') + shRow('Note', x && x.note ? escapeHtml(x.note) : '') + (x ? '' : '<p style="font-size:.8rem;color:var(--text-secondary);margin-top:8px">This is your monthly income. Edit it from the dashboard.</p>') + (ts ? shHist([{ text: 'Created', ts }]) : '')
-        + (x && r.ym === appState.selectedMonth ? shBtns([['Delete', `askConfirm('Delete this income?','delExtraIncome(\\'${x.id}\\')')`]]) : '')); }
+        + (x ? shBtns([['Open extra income', 'openExtraIncomeModal()', 'btn-primary']]) : '')); }
     if (r.k === 'fund') { const ts = tsFromId(r.hid);
       return openModal(shHead(r.ftype === 'add' ? '+' : '−', r.amt, 'Fund', r.title) + shRow('Type', r.ftype === 'add' ? 'Added to fund' : 'Withdrawn') + shRow('Date', r.date || '') + shRow('Note', r.note ? escapeHtml(r.note) : '') + (ts ? shHist([{ text: 'Created', ts }]) : '') + shBtns([['Open fund', `openFundSheet('${r.fid}')`, 'btn-primary']])); }
     const ts = tsFromId(r.hid);
@@ -2643,6 +2629,7 @@ ${n.body}`;
       ${item.notes ? `<div style="font-size:.76rem;color:var(--text-secondary)">${escapeHtml(item.notes)}</div>` : ''}
       <div class="udhaar-actions">${!done ? `<button class="btn-primary" style="flex:1;justify-content:center" onclick="openUdhaarPaymentModal('${item.id}')">+ ${item.type === 'lent' ? 'Receive Payment' : 'Pay Back'}</button><button class="eye-btn" onclick="remindUdhaar('${item.id}')">Remind</button>` : '<div style="flex:1;font-size:.78rem;color:var(--success);font-weight:700">All clear</div>'}<button class="eye-btn" onclick="openUdhaarEyeModal('${item.id}')">Details</button></div></div>`;
   };
+  let udFilter = 'active';
   const renderUdhaarTabV5 = () => {
     renderUdDueSummary();
     let lp = 0, bp = 0; appState.udhaar.forEach(u => { if (u.type === 'lent') lp += udRem(u); else bp += udRem(u); });
@@ -2650,12 +2637,15 @@ ${n.body}`;
     const q = udQ.trim().toLowerCase(), c = document.getElementById('udhaarListContainer');
     const list = appState.udhaar.filter(u => u.type === activeUdhaarSubTab && (!q || `${u.person} ${u.notes || ''}`.toLowerCase().includes(q)));
     const pend = list.filter(u => udRem(u) > 0), setl = list.filter(u => udRem(u) === 0);
+    document.getElementById('udFilterChips').innerHTML = [['active', 'Active', pend.length], ['completed', 'Completed', setl.length], ['all', 'All', list.length]].map(([v, t, n]) => `<button class="btn-secondary" style="padding:6px 14px;font-size:.78rem;${udFilter === v ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="udFilter='${v}';renderUdhaarTab()">${t} (${n})</button>`).join('');
+    const showP = udFilter !== 'completed', showS = udFilter !== 'active';
     if (!list.length) { c.innerHTML = '<div class="empty-state">No records here. Tap <strong>+ Add Entry</strong> to log one.</div>'; return; }
     const key = (u) => u.due ? daysFromToday(u.due) : 99999, groups = {};
     pend.forEach(u => { const k = u.person.trim().toLowerCase(); (groups[k] = groups[k] || []).push(u); });
     const gl = Object.values(groups).map(g => { g.sort((a, b) => key(a) - key(b)); return g; }).sort((a, b) => key(a[0]) - key(b[0]));
-    let h = gl.map(g => (g.length > 1 ? `<div style="display:flex;justify-content:space-between;font-weight:800;font-size:.85rem;padding:4px 4px 0"><span>${escapeHtml(g[0].person)} (${g.length} entries)</span><span style="color:var(--danger)">${formatINR(g.reduce((t, u) => t + udRem(u), 0))} pending</span></div>` : '') + g.map(udCard).join('')).join('');
-    if (setl.length) h += `<button class="btn-secondary" style="justify-content:center" onclick="udShowSettled=!udShowSettled;renderUdhaarTab()">${udShowSettled ? 'Hide' : 'Show'} settled (${setl.length})</button>` + (udShowSettled ? setl.map(udCard).join('') : '');
+    let h = !showP ? '' : gl.map(g => (g.length > 1 ? `<div style="display:flex;justify-content:space-between;font-weight:800;font-size:.85rem;padding:4px 4px 0"><span>${escapeHtml(g[0].person)} (${g.length} entries)</span><span style="color:var(--danger)">${formatINR(g.reduce((t, u) => t + udRem(u), 0))} pending</span></div>` : '') + g.map(udCard).join('')).join('');
+    if (showS && setl.length) h += (showP && gl.length ? '<div style="font-weight:800;font-size:.8rem;color:var(--text-secondary);margin:6px 4px 0">Completed</div>' : '') + setl.map(udCard).join('');
+    if (!h) h = `<div class="empty-state">No ${udFilter} loans here.</div>`;
     c.innerHTML = h;
   };
   const udHistHtml = (item) => `<div style="margin:8px 0"><div style="font-weight:800;font-size:.82rem;margin-bottom:4px">History</div>${(item.history || []).map(h => { const pay = /Back/.test(h.action || ''); return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:.78rem;padding:5px 0;border-bottom:1px solid var(--border-color)"><div><div style="font-weight:700">${escapeHtml(h.action || '')}${h.note && h.note !== 'Payment' && h.note !== 'Created' ? ' · ' + escapeHtml(h.note) : ''}</div><div style="color:var(--text-muted);font-size:.7rem">${h.date || ''}${(h.time || timeFromId(h.id)) ? ' · ' + fmt12(h.time || timeFromId(h.id)) : ''}</div></div><div style="display:flex;gap:5px;align-items:center"><strong>${formatINR(h.amount)}</strong>${pay ? `<button class="btn-secondary" style="padding:4px 8px" onclick="openUdPayEdit('${item.id}','${h.id}')">Edit</button><button class="btn-secondary" style="padding:4px 8px" onclick="askConfirm('Delete this payment?','delUdPay(\\'${item.id}\\',\\'${h.id}\\')')">Del</button>` : ''}</div></div>`; }).join('')}</div>`;
@@ -2832,6 +2822,64 @@ ${n.body}`;
   };
   let _icoBusy = false;
   const startIconify = () => { iconify(document.body); new MutationObserver(() => { if (_icoBusy) return; _icoBusy = true; requestAnimationFrame(() => { iconify(document.body); _icoBusy = false; }); }).observe(document.body, { childList: true, subtree: true, characterData: true }); };
+
+
+  /* ==========================================================================
+     [SALARY SAVINGS LEDGER] Add / Spent ki list, balance = Add - Spent
+     ========================================================================== */
+  const migrateSalary = () => {
+    const L = [];
+    Object.keys(appState.months).sort().forEach(ym => { const m = appState.months[ym];
+      if (Number(m.salarySavings) > 0) L.push({ id: 'sl_' + (Date.now() + L.length), type: 'add', amount: Number(m.salarySavings), note: 'Earlier savings', date: ym + '-01', time: '' });
+      (m.salarySpend || []).forEach((s, i) => L.push({ id: 'sl_' + (Date.now() + 500 + L.length), type: 'spend', amount: Number(s.amount), note: s.note || 'Spent', date: s.date || ym + '-01', time: '' })); });
+    appState.salaryLedger = L; saveState();
+  };
+  const salaryNet = (ym, mData) => { if (!appState.salaryLedger) migrateSalary(); let n = 0; appState.salaryLedger.forEach(x => { if ((x.date || '').slice(0, 7) === ym) n += x.type === 'add' ? Number(x.amount) : -Number(x.amount); }); return Math.max(0, n); };
+  const getSalaryPool = () => { if (!appState.salaryLedger) migrateSalary(); let saved = 0, spent = 0; appState.salaryLedger.forEach(x => { if (x.type === 'add') saved += Number(x.amount); else spent += Number(x.amount); }); return { saved, spent, left: saved - spent }; };
+  const slForm = (type) => { const add = type === 'add';
+    openModal(head(add ? 'Add to Salary Savings' : 'Spent from Salary Savings') + `<p style="font-size:.78rem;color:var(--text-secondary);margin-bottom:8px">Balance now: <strong>${money(getSalaryPool().left)}</strong></p>
+      <div class="form-group"><label class="form-label">Amount (₹)</label><input id="slAmt" type="number" inputmode="decimal" min="1" class="form-input"></div>
+      <div class="form-group"><label class="form-label">Note</label><input id="slNote" class="form-input" placeholder="${add ? 'e.g. November savings' : 'e.g. Phone repair'}"></div>
+      <div class="form-group"><label class="form-label">Date</label><input id="slDate" type="date" class="form-input" value="${todayStr()}"><label class="form-label" style="margin-top:6px">Time</label><input id="slTime" type="time" class="form-input" value="${nowHM()}"></div>
+      <button class="btn-primary" style="justify-content:center;padding:12px" onclick="saveSalaryEntry('${type}')">Save</button>`); };
+  const openSalarySavingModal = () => slForm('add');
+  const openSalarySpendModal = () => slForm('spend');
+  const saveSalaryEntry = (type) => {
+    const amt = Number($v('slAmt')); if (!(amt > 0)) { showToast('Enter a valid amount'); return; }
+    if (type === 'spend' && amt > getSalaryPool().left) { showToast('Not enough balance in Salary Savings'); return; }
+    if (!appState.salaryLedger) migrateSalary();
+    appState.salaryLedger.unshift({ id: 'sl_' + Date.now(), type, amount: amt, note: $v('slNote').trim() || (type === 'add' ? 'Savings' : 'Spent'), date: $v('slDate') || todayStr(), time: $v('slTime') || nowHM() });
+    saveState(); closeModal(); renderAll(); showToast(type === 'add' ? 'Added to savings' : 'Spent from savings');
+  };
+  const openSalaryHistoryModal = () => {
+    if (!appState.salaryLedger) migrateSalary();
+    const chrono = appState.salaryLedger.slice().sort((p, q) => ((p.date || '') + (p.time || '')).localeCompare((q.date || '') + (q.time || '')) || tsFromId(p.id) - tsFromId(q.id)); let bal = 0; const withBal = chrono.map(x => { bal += x.type === 'add' ? Number(x.amount) : -Number(x.amount); return { x, bal }; }).reverse();
+    openModal(head('Salary Savings history') + `<p style="font-size:.78rem;color:var(--text-secondary)">Entries cannot be edited. If something is wrong, delete it and add it again. Deleted entries are noted at the bottom.</p>` + (withBal.length ? withBal.map(({ x, bal }) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border-color)"><div style="min-width:0"><div style="font-weight:700;font-size:.86rem">${escapeHtml(x.note)}</div><div style="font-size:.72rem;color:var(--text-muted)">${x.date || ''}${x.time ? ' · ' + fmt12(x.time) : ''} · Balance ${money(bal)}</div></div><div style="display:flex;align-items:center;gap:8px"><strong style="color:${x.type === 'add' ? 'var(--success)' : 'var(--danger)'}">${x.type === 'add' ? '+' : '−'}${money(x.amount)}</strong><button class="btn-secondary" style="padding:4px 9px;font-size:.7rem" onclick="askConfirm('Delete this entry?','delSalaryEntry(\\'${x.id}\\')')">Delete</button></div></div>`).join('') : '<p style="font-size:.85rem;color:var(--text-secondary);margin-top:10px">No entries yet.</p>')
+      + ((appState.salaryAudit || []).length ? `<div style="font-weight:800;font-size:.82rem;margin:14px 0 4px">Deleted entries</div>` + appState.salaryAudit.map(x => `<div style="font-size:.74rem;color:var(--text-muted);padding:3px 0">${escapeHtml(x.text)} · ${fmtTs(x.ts)}</div>`).join('') : ''));
+  };
+  const delSalaryEntry = (id) => { const x = appState.salaryLedger.find(y => y.id === id); if (!x) return; (appState.salaryAudit = appState.salaryAudit || []).unshift({ text: `${x.type === 'add' ? 'Add' : 'Spent'} ${money(x.amount)} (${x.note}, ${x.date})`, ts: Date.now() }); appState.salaryLedger = appState.salaryLedger.filter(y => y.id !== id); saveState(); renderAll(); openSalaryHistoryModal(); };
+
+  /* ==========================================================================
+     [NOTES EDITOR] poora screen, auto-save
+     ========================================================================== */
+  let _note = null, _noteTimer = null;
+  const noteWords = (t) => (t.trim() ? t.trim().split(/\s+/).length : 0);
+  const openNotePage = (id = null) => {
+    if (!appState.notes) appState.notes = [];
+    _note = id ? appState.notes.find(n => n.id === id) : { id: 'note_' + Date.now(), title: '', body: '', date: todayStr(), pinned: false, updated: Date.now(), isNew: true };
+    if (!_note) return; const el = document.getElementById('tab-noteedit');
+    el.innerHTML = `<div class="page-title" style="display:flex;align-items:center;gap:10px"><button class="menu-btn" onclick="closeNotePage()" aria-label="Back">←</button><span style="flex:1">Note</span><button class="menu-btn" id="notePinBtn" onclick="toggleNotePin()" aria-label="Pin">${_note.pinned ? '📌' : '📍'}</button><button class="menu-btn" onclick="deleteNotePage()" aria-label="Delete">🗑️</button></div>
+      <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px"><input id="noteTitle" class="form-input" style="font-size:1.25rem;font-weight:800;border:0;background:none;padding:4px 0" placeholder="Title" value="${escapeHtml(_note.title)}" oninput="noteChanged()"><textarea id="noteBody" class="form-textarea" style="min-height:52vh;border:0;background:none;padding:4px 0;resize:none;font-size:.95rem;line-height:1.6" placeholder="Start writing..." oninput="noteChanged()">${escapeHtml(_note.body)}</textarea><div id="noteMeta" style="font-size:.72rem;color:var(--text-muted)"></div></div>`;
+    noteMeta(); switchMainTab('noteedit'); window.scrollTo(0, 0); if (_note.isNew) setTimeout(() => document.getElementById('noteTitle').focus(), 250);
+  };
+  const noteMeta = () => { const m = document.getElementById('noteMeta'); if (m && _note) m.textContent = `${_note.isNew ? 'Not saved yet' : 'Edited ' + fmtTs(_note.updated || tsFromId(_note.id))} · ${noteWords(_note.body)} words`; };
+  const noteChanged = () => { clearTimeout(_noteTimer); _noteTimer = setTimeout(saveNoteNow, 350); _note.body = document.getElementById('noteBody').value; noteMeta(); };
+  const saveNoteNow = () => { if (!_note) return; _note.title = document.getElementById('noteTitle').value.trim(); _note.body = document.getElementById('noteBody').value;
+    if (!_note.title && !_note.body.trim()) return; _note.updated = Date.now(); if (_note.isNew) { delete _note.isNew; appState.notes.unshift(_note); } saveState(); noteMeta(); renderNotesTab(); };
+  const closeNotePage = () => { clearTimeout(_noteTimer); if (document.getElementById('noteTitle')) saveNoteNow(); _note = null; switchMainTab('notes'); };
+  const toggleNotePin = () => { _note.pinned = !_note.pinned; saveNoteNow(); if (!_note.isNew) saveState(); document.getElementById('notePinBtn').textContent = _note.pinned ? '📌' : '📍'; };
+  const deleteNotePage = () => askConfirm('Delete this note?', 'removeNote()');
+  const removeNote = () => { clearTimeout(_noteTimer); if (_note && !_note.isNew) appState.notes = appState.notes.filter(n => n.id !== _note.id); _note = null; saveState(); renderNotesTab(); switchMainTab('notes'); showToast('Note deleted'); };
 
   window.onload = () => {
     startIconify();

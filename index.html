@@ -7,7 +7,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="app-icon-192.png" />
   <title>SmartBudget - Personal Finance & Loans Manager</title>
-  <link rel="stylesheet" href="style.css?v=6.6" />
+  <link rel="stylesheet" href="style.css?v=6.7" />
 </head>
 <body>
   <div id="splash"><div class="sp-in"><svg class="sp-logo" viewBox="0 0 100 100" width="132" height="132"><defs><linearGradient id="spg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c6cff"/><stop offset=".55" stop-color="#b266ff"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs><circle cx="50" cy="50" r="48" fill="url(#spg)"/><text x="50" y="68" text-anchor="middle" font-size="56" font-weight="800" fill="#fff" font-family="sans-serif">₹</text></svg><div class="sp-name">SmartBudget</div><div class="sp-bar"><i></i></div></div></div>
@@ -150,7 +150,7 @@
             </div>
           </div>
           <div style="display:flex;flex-direction:column;gap:6px">
-            <button class="btn-primary" style="background:var(--success);" onclick="openSalarySavingModal()">+ Add / Edit</button>
+            <button class="btn-primary" style="background:var(--success);" onclick="openSalarySavingModal()">+ Add</button>
             <button class="btn-secondary" style="justify-content:center;padding:8px" onclick="openSalarySpendModal()">➖ Spent</button>
             <button class="btn-secondary" style="justify-content:center;padding:8px" onclick="openSalaryHistoryModal()">🧾 History</button>
           </div>
@@ -241,6 +241,7 @@
         <button class="btn-primary" onclick="openNewUdhaarModal()">+ Add Entry</button>
       </div>
 
+      <div id="udFilterChips" style="display:flex;gap:6px;margin:4px 0 8px;overflow-x:auto"></div>
       <div id="udhaarListContainer" style="display:flex; flex-direction:column; gap:12px;"></div>
     </section>
 
@@ -306,12 +307,14 @@
     </section>
 
     <!-- ==================== TAB 6: SMART NOTES & BACKUP SETTINGS ==================== -->
+    <section class="tab-pane" id="tab-noteedit"></section>
+
     <section class="tab-pane" id="tab-notes">
       <div class="page-title" style="display:flex;align-items:center;gap:10px"><button class="menu-btn" onclick="goBack()" aria-label="Back">←</button>Notes</div>
       <div class="card" style="display:flex; flex-direction:column; gap:12px;">
         <div class="section-header">
           <h2 class="section-title">📝 Smart Financial Notes</h2>
-          <button class="btn-primary" onclick="openNoteModal()">+ New Note</button>
+          <button class="btn-primary" onclick="openNotePage()">+ New Note</button>
         </div>
         <input type="text" id="noteSearchInput" class="form-input" placeholder="🔍 Search notes..." oninput="renderNotesTab()" />
         <div id="notesListContainer" style="display:flex; flex-direction:column; gap:8px;"></div>
@@ -453,6 +456,6 @@
   </div>
 </div>
 
-<script src="app.js?v=6.6"></script>
+<script src="app.js?v=6.7"></script>
 </body>
 </html>
