@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'smart_budget_india_v2';
-  const APP_VERSION = '6.4';
-  const WHATS_NEW = ['Plans: Pending, Completed and All views', 'Plan details screen with Add charge and a full history of changes', 'Side menu: thin separator lines between items and groups'];
+  const APP_VERSION = '6.5';
+  const WHATS_NEW = ['Funds: tap a fund for a details sheet, hold a card for quick actions, drag the handle to reorder', 'Funds: Active, Completed and All views, target date with On track / Behind tag', 'Alerts: Dismiss one or all', 'More of the app is now in English, and action icons are now clean line icons'];
 
   const formatINR = (num) => {
     const val = Math.round(Number(num) || 0);
@@ -424,7 +424,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     const mData = getCurrentMonthData();
     const salarySavings = Number(mData.salarySavings) || 0;
     document.getElementById('displaySalarySavings').textContent = formatINR(salarySavings);
-    const _sp = getSalaryPool(); document.getElementById('salaryTotalLine').innerHTML = `Kul jama (sab mahine): <span style="color:var(--success)">${formatINR(_sp.left)}</span><br><span style="font-weight:500;color:var(--text-secondary)">Jama ${formatINR(_sp.saved)} − Kharch ${formatINR(_sp.spent)}</span>`;
+    const _sp = getSalaryPool(); document.getElementById('salaryTotalLine').innerHTML = `Total saved (all months): <span style="color:var(--success)">${formatINR(_sp.left)}</span><br><span style="font-weight:500;color:var(--text-secondary)">Saved ${formatINR(_sp.saved)} − Spent ${formatINR(_sp.spent)}</span>`;
 
     const totalAll = appState.funds.reduce((s, f) => s + Number(f.balance), 0);
     const monthAdded = Math.max(0, getMonthlyFundContribution(appState.selectedMonth));
@@ -439,51 +439,76 @@ const STORAGE_KEY = 'smart_budget_india_v2';
       return;
     }
 
-    container.innerHTML = appState.funds.map(fund => {
-      const target = Number(fund.target) || 0;
-      const pct = target > 0 ? Math.min(100, Math.round((fund.balance / target) * 100)) : 100;
-      const thisMonthAmt = (fund.history || [])
-        .filter(h => h.month === appState.selectedMonth)
-        .reduce((s, h) => s + (h.type === 'add' ? Number(h.amount) : -Number(h.amount)), 0);
-
-      return `
-        <div class="fund-card">
-          <div class="fund-header">
-            <div class="fund-title-group">
-              <div class="fund-emoji">${fund.icon || '💰'}</div>
-              <div>
-                <div style="font-weight:800; font-size:0.98rem;">${escapeHtml(fund.name)}</div>
-                <div style="font-size:0.74rem; color:var(--text-muted);">
-                  ${target > 0 ? `Goal: ${formatINR(target)} (${pct}%)` : 'Open-ended Fund'}
-                </div>
-              </div>
-            </div>
-            <div style="display:flex; gap:6px;">
-              <button class="mini-icon-btn" title="View History" onclick="openFundHistoryModal('${fund.id}')">👁️</button>
-              <button class="mini-icon-btn" title="Edit Fund" onclick="openFundModal('${fund.id}')">✏️</button>
-            </div>
-          </div>
-
-          <div class="fund-balance">${formatINR(fund.balance)}</div>
-
-          ${target > 0 ? `
-            <div class="progress-track">
-              <div class="progress-fill" style="width:${pct}%; background:var(--success);"></div>
-            </div>
-          ` : ''}
-
-          <div class="fund-meta-row">
-            <span>Net added in ${formatMonthDisplay(appState.selectedMonth)}:</span>
-            <strong style="color:var(--accent);">+${formatINR(Math.max(0, thisMonthAmt))}</strong>
-          </div>
-
-          <div class="fund-btn-row">
-            <button class="btn-primary" style="justify-content:center;" onclick="openFundTxnModal('${fund.id}', 'add')">+ Add Money</button>
-            <button class="btn-secondary" style="justify-content:center;" onclick="openFundTxnModal('${fund.id}', 'withdraw')">- Withdraw</button>
-          </div>
-        </div>
-      `;
+    const fc = (f) => fundStatus(f), counts = { active: 0, completed: 0 }; appState.funds.forEach(f => { counts[fc(f).done ? 'completed' : 'active']++; });
+    document.getElementById('fundFilterChips').innerHTML = [['active', 'Active', counts.active], ['completed', 'Completed', counts.completed], ['all', 'All', appState.funds.length]].map(([v, t, n]) => `<button class="btn-secondary" style="padding:6px 14px;font-size:.78rem;${fundFilter === v ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="fundFilter='${v}';renderFundsTab()">${t} (${n})</button>`).join('');
+    const list = appState.funds.filter(f => fundFilter === 'all' || (fundFilter === 'completed') === fc(f).done);
+    if (!list.length) { container.innerHTML = `<div class="empty-state">No ${fundFilter} funds.</div>`; return; }
+    container.innerHTML = list.map(fund => {
+      const st = fundStatus(fund), target = Number(fund.target) || 0;
+      return `<div class="fund-card" data-id="${fund.id}" onclick="fundCardTap('${fund.id}')">
+        <div class="fund-header"><div class="fund-title-group"><div class="fund-emoji">${fund.icon || '💰'}</div><div><div style="font-weight:800;font-size:.98rem">${escapeHtml(fund.name)}</div><div style="font-size:.74rem;color:var(--text-muted)">${target > 0 ? `Goal ${formatINR(target)} · ${st.pct}%` : 'Open-ended fund'}</div></div></div>
+          <div style="display:flex;align-items:center;gap:8px"><span class="fund-tag">${st.label}</span><span class="drag-handle" onpointerdown="fundDragStart(event,'${fund.id}')" onclick="event.stopPropagation()" title="Drag to reorder">⠿</span></div></div>
+        <div class="fund-balance">${formatINR(fund.balance)}</div>
+        ${target > 0 ? `<div class="progress-track"><div class="progress-fill" style="width:${st.pct}%;background:var(--accent)"></div></div>` : ''}
+        ${fund.targetDate ? `<div style="font-size:.74rem;color:var(--text-secondary)">Target date ${fund.targetDate}</div>` : ''}
+      </div>`;
     }).join('');
+  };
+
+  /* ---- [FUNDS] status, sheet, hold menu, drag ---- */
+  let fundFilter = 'active', lpFired = false;
+  const fundStatus = (f) => {
+    const target = Number(f.target) || 0, bal = Number(f.balance) || 0, pct = target > 0 ? Math.min(100, Math.round(bal / target * 100)) : 0;
+    if (f.done || (target > 0 && bal >= target)) return { done: true, pct: target > 0 ? 100 : pct, label: 'Completed' };
+    if (!f.targetDate || !(target > 0)) return { done: false, pct, label: 'Active' };
+    const start = Number(String(f.id).split('_')[1]) || Date.now(), end = new Date(f.targetDate + 'T23:59:59').getTime(), now = Date.now();
+    if (now > end) return { done: false, pct, label: 'Behind' };
+    const exp = Math.min(1, (now - start) / Math.max(1, end - start)) * 100;
+    return { done: false, pct, label: pct + 5 >= exp ? 'On track' : 'Behind' };
+  };
+  const fundCardTap = (id) => { if (lpFired) { lpFired = false; return; } openFundSheet(id); };
+  const openFundSheet = (id) => {
+    const f = appState.funds.find(x => x.id === id); if (!f) return;
+    const st = fundStatus(f), target = Number(f.target) || 0, left = Math.max(0, target - f.balance);
+    let plan = '';
+    if (target > 0 && !st.done && f.targetDate) { const days = Math.ceil((new Date(f.targetDate + 'T23:59:59') - Date.now()) / 86400000); plan = days > 0 ? `Save ${formatINR(Math.ceil(left / Math.max(1, days / 30)))} per month to reach it by ${f.targetDate}` : 'Target date has passed'; }
+    const hist = (f.history || []).slice().sort((p, q) => (q.date || '').localeCompare(p.date || ''));
+    openModal(`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="display:flex;align-items:center;gap:10px"><div class="fund-emoji">${f.icon || '💰'}</div><div style="font-weight:800;font-size:1.05rem">${escapeHtml(f.name)}</div></div><span class="fund-tag">${st.label}</span></div>
+      <div style="font-size:2rem;font-weight:800">${formatINR(f.balance)}</div>
+      ${target > 0 ? `<div style="font-size:.8rem;color:var(--text-secondary)">of ${formatINR(target)} target</div><div class="progress-track" style="margin:10px 0 6px"><div class="progress-fill" style="width:${st.pct}%;background:var(--accent)"></div></div><div style="display:flex;justify-content:space-between;font-size:.76rem;color:var(--text-secondary)"><span>${st.pct}% reached</span><span>${st.done ? 'Goal reached' : formatINR(left) + ' to go'}</span></div>` : '<div style="font-size:.8rem;color:var(--text-secondary)">No target set</div>'}
+      ${plan ? `<div style="font-size:.8rem;margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--accent-soft)">${plan}</div>` : ''}
+      <div style="display:flex;gap:10px;margin:14px 0"><button class="btn-primary" style="flex:1;justify-content:center;padding:12px" onclick="closeModal();setTimeout(()=>openFundTxnModal('${f.id}','add'),140)">Add money</button><button class="btn-secondary" style="flex:1;justify-content:center;padding:12px" onclick="closeModal();setTimeout(()=>openFundTxnModal('${f.id}','withdraw'),140)">Withdraw</button></div>
+      <div style="font-weight:800;font-size:.84rem;margin-bottom:4px">History</div>
+      <div style="max-height:28vh;overflow-y:auto">${hist.length ? hist.map(x => { const ts = Number(String(x.id).split('_')[1]); return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-color);font-size:.82rem"><div><div style="font-weight:700">${x.type === 'add' ? 'Added' : 'Withdrawn'}${x.note ? ' · ' + escapeHtml(x.note) : ''}</div><div style="color:var(--text-muted);font-size:.72rem">${x.date || ''}${ts > 1e12 ? ' · ' + fmtTs(ts) : ''}</div></div><div style="display:flex;align-items:center;gap:8px"><strong style="color:${x.type === 'add' ? 'var(--success)' : 'var(--danger)'}">${x.type === 'add' ? '+' : '−'}${formatINR(x.amount)}</strong><button class="btn-secondary" style="padding:4px 9px;font-size:.7rem" onclick="delFundHistory('${f.id}','${x.id}')">Delete</button></div></div>`; }).join('') : '<div style="font-size:.8rem;color:var(--text-muted)">No transactions yet.</div>'}</div>
+      <div style="display:flex;gap:10px;margin-top:14px"><button class="btn-secondary" style="flex:1;justify-content:center;padding:11px" onclick="closeModal();setTimeout(()=>openFundModal('${f.id}'),140)">Edit fund</button><button class="btn-secondary" style="flex:1;justify-content:center;padding:11px" onclick="toggleFundDone('${f.id}')">${f.done ? 'Reopen fund' : 'Mark as completed'}</button></div>`);
+  };
+  const toggleFundDone = (id) => { const f = appState.funds.find(x => x.id === id); if (!f) return; f.done = !f.done; saveState(); renderAll(); closeModal(); showToast(f.done ? 'Fund marked as completed' : 'Fund reopened'); };
+  const delFundHistory = (fid, hid) => confirmAction('Delete this entry?', 'The fund balance will be adjusted back.', () => {
+    const f = appState.funds.find(x => x.id === fid), x = f && (f.history || []).find(y => y.id === hid); if (!x) return;
+    f.balance = Number(f.balance) + (x.type === 'add' ? -Number(x.amount) : Number(x.amount)); f.history = f.history.filter(y => y.id !== hid);
+    saveState(); renderAll(); openFundSheet(fid); showToast('Entry deleted');
+  });
+  const openFundActions = (id) => { const f = appState.funds.find(x => x.id === id); if (!f) return;
+    const b = (t, fn) => `<button class="btn-secondary" style="width:100%;justify-content:center;padding:13px;margin-bottom:8px" onclick="closeModal();setTimeout(()=>${fn},140)">${t}</button>`;
+    openModal(head(escapeHtml(f.name)) + b('Add money', `openFundTxnModal('${id}','add')`) + b('Withdraw', `openFundTxnModal('${id}','withdraw')`) + b('Edit', `openFundModal('${id}')`) + b('Delete', `deleteFund('${id}')`)); };
+  const initFundGestures = () => {
+    const el = document.getElementById('fundsListContainer'); if (!el || el._g) return; el._g = true; let timer = null, sx = 0, sy = 0, card = null;
+    const clear = () => { clearTimeout(timer); if (card) card.classList.remove('lifted'); card = null; };
+    el.addEventListener('pointerdown', (e) => { if (e.target.closest('.drag-handle')) return; card = e.target.closest('.fund-card'); if (!card) return; sx = e.clientX; sy = e.clientY;
+      timer = setTimeout(() => { lpFired = true; card.classList.add('lifted'); try { navigator.vibrate && navigator.vibrate(18); } catch (x) {} const id = card.dataset.id; openFundActions(id); setTimeout(() => { lpFired = false; }, 600); }, 480); });
+    el.addEventListener('pointermove', (e) => { if (Math.abs(e.clientX - sx) > 9 || Math.abs(e.clientY - sy) > 9) clear(); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => el.addEventListener(t, () => { clearTimeout(timer); if (card) { const c = card; setTimeout(() => c.classList.remove('lifted'), 250); } }));
+  };
+  const fundDragStart = (e, id) => {
+    e.preventDefault(); e.stopPropagation(); const handle = e.currentTarget, card = handle.closest('.fund-card'), list = card.parentElement, startY = e.clientY;
+    try { handle.setPointerCapture(e.pointerId); } catch (x) {} card.classList.add('lifted'); card.style.zIndex = 5; card.style.transition = 'none';
+    const move = (ev) => { card.style.transform = `translateY(${ev.clientY - startY}px) scale(1.02)`; };
+    const up = (ev) => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up);
+      const others = [...list.children].filter(x => x !== card); let before = null; for (const x of others) { const r = x.getBoundingClientRect(); if (ev.clientY < r.top + r.height / 2) { before = x; break; } }
+      const f = appState.funds.splice(appState.funds.findIndex(x => x.id === id), 1)[0];
+      let idx = before ? appState.funds.findIndex(x => x.id === before.dataset.id) : (others.length ? appState.funds.findIndex(x => x.id === others[others.length - 1].dataset.id) + 1 : appState.funds.length);
+      appState.funds.splice(idx, 0, f); saveState(); renderFundsTab(); };
+    handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
   };
 
   const getReminderBadgeHtml = (plan) => {
@@ -543,7 +568,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
         </div>
         <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
           <div style="font-weight:800; font-size:0.94rem; color:${p.marked ? 'var(--danger)' : 'var(--text-secondary)'}; margin-right:2px;">${formatINR(p.amount)}</div>
-          ${!p.marked && p.date ? `<button class="mini-icon-btn" title="Calendar mein jodo" onclick="addPlanToCalendar('${p.id}')">📅</button>` : ''}
+          ${!p.marked && p.date ? `<button class="mini-icon-btn" title="Add to calendar" onclick="addPlanToCalendar('${p.id}')">📅</button>` : ''}
           <button class="mini-icon-btn" title="Edit Plan" onclick="openUpcomingPlanModal('${p.id}')">✏️</button>
           <button class="mini-icon-btn" style="color:var(--danger);" title="Delete Plan" onclick="deleteUpcomingPlan('${p.id}')">🗑️</button>
         </div>
@@ -577,7 +602,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     document.getElementById('segLentBtn').classList.toggle('active', sub === 'lent');
     document.getElementById('segBorrowedBtn').classList.toggle('active', sub === 'borrowed');
     document.getElementById('udhaarListHeading').textContent =
-      sub === 'lent' ? 'People Who Owe You (Lena)' : 'People You Owe (Dena)';
+      sub === 'lent' ? 'People who owe you' : 'People you owe';
     renderUdhaarTab();
   };
 
@@ -866,6 +891,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     renderUdhaarTab();
     renderTxns();
     renderCatPage();
+    initFundGestures();
     renderDashUdhaar();
     renderBell();
     renderNotesTab();
@@ -1003,7 +1029,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
       </div>
       <div class="form-group">
         <label class="form-label">Category (mark karne par yahin judega)</label>
-        <select id="planCat" onchange="updatePlanWarn('${plan ? plan.id : ''}')" class="form-input"><option value="">— Baad mein chununga —</option>${mData.categories.map(c => `<option value="${c.id}" ${plan && plan.catId === c.id ? 'selected' : ''}>${c.icon} ${escapeHtml(c.name)}</option>`).join('')}</select>
+        <select id="planCat" onchange="updatePlanWarn('${plan ? plan.id : ''}')" class="form-input"><option value="">— Choose later —</option>${mData.categories.map(c => `<option value="${c.id}" ${plan && plan.catId === c.id ? 'selected' : ''}>${c.icon} ${escapeHtml(c.name)}</option>`).join('')}</select>
       </div>
       <div id="planWarn" style="font-size:.78rem;line-height:1.5;margin-bottom:8px"></div>
       <div style="display:flex; gap:10px;">
@@ -1323,6 +1349,10 @@ const STORAGE_KEY = 'smart_budget_india_v2';
         <label class="form-label">Target Goal Amount (₹)</label>
         <input type="number" inputmode="decimal" id="fundTargetInp" class="form-input" value="${fund ? fund.target : 50000}" min="0" />
       </div>
+      <div class="form-group">
+        <label class="form-label">Target date (optional)</label>
+        <input type="date" id="fundDateInp" class="form-input" value="${fund && fund.targetDate ? fund.targetDate : ''}" />
+      </div>
       ${!fund ? `
         <div class="form-group">
           <label class="form-label">Starting Balance (₹)</label>
@@ -1347,6 +1377,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     const name = document.getElementById('fundNameInp').value.trim();
     const target = Math.max(0, Number(document.getElementById('fundTargetInp').value) || 0);
     const icon = document.getElementById('fundIconInp').value || '💰';
+    const targetDate = document.getElementById('fundDateInp').value;
 
     if (!name) {
       showToast('Enter a fund name');
@@ -1355,7 +1386,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
 
     if (fundId) {
       const f = appState.funds.find(x => x.id === fundId);
-      if (f) { f.name = name; f.target = target; f.icon = icon; }
+      if (f) { f.name = name; f.target = target; f.icon = icon; f.targetDate = targetDate; }
     } else {
       const startBal = Math.max(0, Number(document.getElementById('fundStartInp').value) || 0);
       appState.funds.push({
@@ -1363,6 +1394,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
         name,
         icon,
         target,
+        targetDate,
         balance: startBal,
         history: startBal > 0 ? [{ id: 'fh_' + Date.now(), type: 'add', amount: startBal, month: appState.selectedMonth, date: `${appState.selectedMonth}-${String(new Date().getDate()).padStart(2, '0')}`, note: 'Opening Balance' }] : []
       });
@@ -1830,8 +1862,8 @@ ${n.body}`;
 
   const shareBackupFile = async () => {
     const file = new File([JSON.stringify(appState, null, 2)], getSanitizedBackupFileName(), { type: 'application/json' });
-    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); markBackupDone(); } else showToast('Is phone par share support nahi, Backup button use karo'); }
-    catch (e) { if (e.name !== 'AbortError') showToast('Share nahi hua'); }
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); markBackupDone(); } else showToast('Sharing is not supported on this phone. Use the Backup button.'); }
+    catch (e) { if (e.name !== 'AbortError') showToast('Could not share'); }
   };
   const applyRestoredData = (parsed) => {
     if (!parsed || typeof parsed !== 'object' || !parsed.months || typeof parsed.months !== 'object' || !Object.values(parsed.months).every(m => m && Array.isArray(m.categories) && Array.isArray(m.expenses)) || (parsed.udhaar && !Array.isArray(parsed.udhaar)) || (parsed.funds && !Array.isArray(parsed.funds))) { showToast('This backup file is not valid. Nothing was changed.'); return; }
@@ -2030,13 +2062,13 @@ ${n.body}`;
   const forgotPin = () => {
     openModal(head('PIN bhool gaye?') + (appState.pinRecovery ? `
       <div class="form-group"><label class="form-label">Recovery code</label><input id="rcCode" class="form-input" placeholder="ABC-123" autocapitalize="characters"></div>
-      ${pinInput('rcNew', 'Naya 4-digit PIN')}
-      <button class="btn-primary" style="justify-content:center;padding:12px;margin-bottom:10px" onclick="resetPinWithCode()">PIN reset karo (data bachega)</button>` : '<p style="font-size:.8rem;color:var(--text-secondary);margin-bottom:10px">Is PIN ke liye recovery code nahi bana tha.</p>') + `
-      <button class="btn-danger" style="justify-content:center;padding:12px" onclick="eraseWithBackup()">Code nahi hai: backup lekar data hatao</button>`);
+      ${pinInput('rcNew', 'New 4-digit PIN')}
+      <button class="btn-primary" style="justify-content:center;padding:12px;margin-bottom:10px" onclick="resetPinWithCode()">Reset PIN (keeps your data)</button>` : '<p style="font-size:.8rem;color:var(--text-secondary);margin-bottom:10px">No recovery code was created for this PIN.</p>') + `
+      <button class="btn-danger" style="justify-content:center;padding:12px" onclick="eraseWithBackup()">No code? Back up, then erase data</button>`);
   };
   const resetPinWithCode = () => {
     const c = $v('rcCode').trim().toUpperCase(), n = $v('rcNew');
-    if (hashPin('rc|' + c) !== appState.pinRecovery) { showToast('Code galat hai'); return; }
+    if (hashPin('rc|' + c) !== appState.pinRecovery) { showToast('Wrong code'); return; }
     if (!/^\d{4}$/.test(n)) { showToast('PIN 4 digit ka hona chahiye'); return; }
     appState.pin = hashPin(n); const code = makeRecoveryCode(); appState.pinRecovery = hashPin('rc|' + code); saveState();
     document.getElementById('lockScreen').style.display = 'none'; renderPinStatus(); showRecoveryCode(code);
@@ -2045,14 +2077,14 @@ ${n.body}`;
     if (!window._ok) { askConfirm('A backup file will download first, then all data will be erased. Continue?', 'window._ok=true;eraseWithBackup();window._ok=false'); return; }
     const blob = new Blob([JSON.stringify(appState, null, 2)], { type: 'application/json' }), url = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = url; a.download = `SmartBudget_PreReset_${todayStr()}.json`; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => { URL.revokeObjectURL(url); _clearAllData(); applyTheme(); closeModal(); document.getElementById('lockScreen').style.display = 'none'; showToast('Backup download hua, data hata diya'); }, 1200);
+    setTimeout(() => { URL.revokeObjectURL(url); _clearAllData(); applyTheme(); closeModal(); document.getElementById('lockScreen').style.display = 'none'; showToast('Backup downloaded, data erased'); }, 1200);
   };
   const renderPinStatus = () => { const el = document.getElementById('pinStatus'); if (el) el.textContent = appState.pin ? '🔒 PIN lock is ON (also locks after 30 sec away from app).' : 'PIN lock is OFF. Note: this is a privacy lock, not encryption.'; };
   const pinInput = (id, label) => `<div class="form-group"><label class="form-label">${label}</label><input type="password" inputmode="numeric" maxlength="4" id="${id}" class="form-input" placeholder="••••" /></div>`;
   const openPinModal = () => openModal(`
     <div class="modal-header"><h3 class="modal-title">${appState.pin ? 'Change PIN' : 'Set 4-digit PIN'}</h3><button class="close-btn" onclick="closeModal()">✕</button></div>
     ${appState.pin ? pinInput('pinOld', 'Current PIN') : ''}${pinInput('pinNew', 'New PIN')}${pinInput('pinNew2', 'Confirm New PIN')}
-    <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:10px;">PIN save karne par ek recovery code milega. Use likh lena, bhoolne par PIN reset ho sakega.</p>
+    <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:10px;">You get a recovery code when you save a PIN. Write it down so you can reset the PIN if you forget it.</p>
     <button class="btn-primary" style="justify-content:center;padding:12px;" onclick="savePin()">Save PIN</button>`);
   const savePin = () => {
     const v = id => (document.getElementById(id) || {}).value || '';
@@ -2065,10 +2097,10 @@ ${n.body}`;
   };
   const makeRecoveryCode = () => { const ch = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 6; i++) c += ch[Math.floor(Math.random() * ch.length)]; return c.slice(0, 3) + '-' + c.slice(3); };
   const showRecoveryCode = (code) => openModal(head('🔑 Recovery code') + `
-    <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">PIN save ho gaya. Ye code kahin <strong>likh lo</strong>. PIN bhoolne par isse PIN reset hoga aur data bachega. Ye code dobara nahi dikhega.</p>
+    <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">PIN saved. <strong>Write this code down</strong>. It resets your PIN and keeps your data if you forget it. It will not be shown again.</p>
     <div style="font-size:2rem;font-weight:800;letter-spacing:4px;text-align:center;padding:14px;border-radius:14px;background:var(--accent-soft);margin-bottom:12px">${code}</div>
-    <button class="btn-secondary" style="justify-content:center;padding:12px;margin-bottom:8px" onclick="navigator.clipboard && navigator.clipboard.writeText('${code}'); showToast('Code copy ho gaya')">📋 Copy</button>
-    <button class="btn-primary" style="justify-content:center;padding:12px" onclick="closeModal()">Maine likh liya ✓</button>`);
+    <button class="btn-secondary" style="justify-content:center;padding:12px;margin-bottom:8px" onclick="navigator.clipboard && navigator.clipboard.writeText('${code}'); showToast('Code copied')">📋 Copy</button>
+    <button class="btn-primary" style="justify-content:center;padding:12px" onclick="closeModal()">I have written it down</button>`);
   const openRemovePinModal = () => {
     if (!appState.pin) { showToast('No PIN is set'); return; }
     openModal(`<div class="modal-header"><h3 class="modal-title">Remove PIN</h3><button class="close-btn" onclick="closeModal()">✕</button></div>
@@ -2114,8 +2146,8 @@ ${n.body}`;
     const perDay = Math.floor((avail + 0) / left);
     el.style.display = 'block';
     el.innerHTML = avail < 0
-      ? `🚨 Savings target ke hisaab se <strong>${money(-avail)}</strong> zyada kharch ho chuka hai. Aaj kharcha kam rakho.`
-      : `📅 <strong>Aaj ka limit: ${money(perDay)}</strong> (${left} din bache)<br><span style="color:var(--text-secondary)">Aaj kharch: ${money(todaySpent)} ${todaySpent > perDay ? '⚠️ limit se upar' : '✓'}</span>`;
+      ? `🚨 You are <strong>${money(-avail)}</strong> over your savings target. Try to spend less today.`
+      : `📅 <strong>Today's limit: ${money(perDay)}</strong> (${left} days left)<br><span style="color:var(--text-secondary)">Spent today: ${money(todaySpent)} ${todaySpent > perDay ? '⚠️ over limit' : '✓'}</span>`;
   };
 
   /* ---- Search ---- */
@@ -2156,10 +2188,10 @@ ${n.body}`;
     <div class="form-group"><label class="form-label">What for?</label><input id="spTitle" class="form-input" placeholder="e.g. Dinner, Trip petrol"></div>
     <div class="form-group"><label class="form-label">Total bill (₹)</label><input id="spTotal" type="number" inputmode="decimal" class="form-input"></div>
     <div class="form-group"><label class="form-label">Other people (comma se alag)</label><input id="spPeople" class="form-input" placeholder="Rahul, Amit"></div>
-    <div class="form-group"><label class="form-label">Kisne pay kiya?</label><input id="spPayer" class="form-input" placeholder="Khali = maine pay kiya. Ya naam likho"></div>
-    <div class="form-group"><label class="form-label">Meri hissa expense mein add karo (category)</label><select id="spCat"><option value="">Mat karo</option>${catOptions()}</select></div>
+    <div class="form-group"><label class="form-label">Who paid?</label><input id="spPayer" class="form-input" placeholder="Leave empty if you paid, or type a name"></div>
+    <div class="form-group"><label class="form-label">Add my share as an expense (category)</label><select id="spCat"><option value="">Do not add</option>${catOptions()}</select></div>
     <p id="spPrev" style="font-size:.78rem;color:var(--text-secondary);margin-bottom:8px">Barabar hissa: sab ka total ÷ log. Udhaar tab mein entries ban jaayengi.</p>
-    <button class="btn-primary" style="justify-content:center;padding:12px" onclick="saveSplit()">Split karo</button>`);
+    <button class="btn-primary" style="justify-content:center;padding:12px" onclick="saveSplit()">Split</button>`);
   const saveSplit = () => {
     const total = Number($v('spTotal')), title = $v('spTitle').trim() || 'Split';
     const ppl = $v('spPeople').split(',').map(s => s.trim()).filter(Boolean), payer = $v('spPayer').trim();
@@ -2186,9 +2218,9 @@ ${n.body}`;
   const delShop = (id) => { snap(); appState.shopping = appState.shopping.filter(i => i.id !== id); saveState(); openShoppingModal(); showUndo('Item removed'); };
   const shopToExpense = () => {
     const done = (appState.shopping || []).filter(x => x.done); const sum = done.reduce((s, x) => s + Number(x.price || 0), 0);
-    if (!done.length || !sum) { showToast('Price ke saath items tick karo'); return; }
+    if (!done.length || !sum) { showToast('Tick items with a price'); return; }
     snap(); placeExpense({ id: 'exp_' + Date.now(), catId: $v('shCat'), amount: sum, note: 'Shopping: ' + done.map(x => x.name).join(', ').slice(0, 60), date: todayStr() }, null);
-    appState.shopping = appState.shopping.filter(x => !x.done); saveState(); closeModal(); renderAll(); showUndo('Expense add hua ' + money(sum));
+    appState.shopping = appState.shopping.filter(x => !x.done); saveState(); closeModal(); renderAll(); showUndo('Expense added ' + money(sum));
   };
 
   /* ---- Report share ---- */
@@ -2272,7 +2304,7 @@ ${n.body}`;
 
     if (o.ud) { sec('Udhaar (lent / borrowed)');
       const pend = t => appState.udhaar.filter(u => u.type === t).reduce((s, u) => s + u.totalAmount - u.paidAmount, 0);
-      row('Pending to receive (diya hua)', money(pend('lent')), '#059669', 'bold'); row('Pending to pay (liya hua)', money(pend('borrowed')), '#dc2626', 'bold'); gap();
+      row('Pending to receive (lent)', money(pend('lent')), '#059669', 'bold'); row('Pending to pay (borrowed)', money(pend('borrowed')), '#dc2626', 'bold'); gap();
       appState.udhaar.forEach(u => { row(`${u.person}  (${u.type === 'lent' ? 'Diya' : 'Liya'})  ·  ${u.date}`, `Pending ${money(u.totalAmount - u.paidAmount)} / ${money(u.totalAmount)}`, '#0f172a', 'bold'); if (u.notes) wrap(u.notes, 40, 520);
         (u.history || []).forEach(h => row(`${h.date}  ${h.action}${h.note ? ' – ' + h.note : ''}`, money(h.amount), '#475569', 'normal', 40, 360)); gap(); });
       if (!appState.udhaar.length) row('No udhaar records', ''); }
@@ -2307,14 +2339,14 @@ ${n.body}`;
     if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e.name === 'AbortError') return; } }
     const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-    showToast('PDF download ho gayi — Files se share karo');
+    showToast('PDF downloaded. Share it from Files.');
   };
 
   /* ---- Share backup ---- */
   const shareBackup = async () => {
     const name = getSanitizedBackupFileName(), file = new File([JSON.stringify(appState, null, 2)], name, { type: 'application/json' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: 'SmartBudget Backup' }); markBackupDone(); showToast('Backup shared ✓'); } catch (e) {} }
-    else { showToast('Share is browser mein nahi, download ho raha hai'); exportBackupJSON(); }
+    else { showToast('Sharing is not available here, downloading instead'); exportBackupJSON(); }
   };
 
   /* ---- Themes ---- */
@@ -2344,15 +2376,15 @@ ${n.body}`;
   };
   const _openPlanCatPick = (planId) => openModal(head('Kaunsi category mein?') + `
     <div class="form-group"><select id="pickCat" class="form-input">${catOptions()}</select></div>
-    <button class="btn-primary" style="justify-content:center;padding:12px" onclick="savePlanCatPick('${planId}',false)">Category mein jodo</button>
-    <button class="btn-secondary" style="justify-content:center;padding:12px" onclick="savePlanCatPick('${planId}',true)">Sirf total mein</button>`);
+    <button class="btn-primary" style="justify-content:center;padding:12px" onclick="savePlanCatPick('${planId}',false)">Add to category</button>
+    <button class="btn-secondary" style="justify-content:center;padding:12px" onclick="savePlanCatPick('${planId}',true)">Total only</button>`);
   const openPlanCatPick = (planId) => { window._rrc = true; _openPlanCatPick(planId); };
   const savePlanCatPick = (planId, skip) => {
     window._rrc = false;
     const plan = (getCurrentMonthData().upcomingPlans || []).find(p => p.id === planId);
     if (!plan) return;
     plan.catId = skip ? '' : $v('pickCat'); plan.marked = true; planLog(plan, 'marked', 'Marked as done'); syncPlanExpense(plan);
-    saveState(); closeModal(); renderAll(); showToast('Plan mark ho gaya ✓');
+    saveState(); closeModal(); renderAll(); showToast('Plan marked ✓');
   };
 
   /* ---- [SALARY SAVINGS] kul jama, kharch, history ---- */
@@ -2364,15 +2396,15 @@ ${n.body}`;
   const findSalarySpend = (id) => { for (const ym of Object.keys(appState.months)) { const s = (appState.months[ym].salarySpend || []).find(x => x.id === id); if (s) return { s, ym }; } return null; };
   const openSalarySpendModal = (id = '') => {
     const f = id ? findSalarySpend(id) : null, s = f ? f.s : null;
-    openModal(head(s ? '✏️ Kharch edit' : '➖ Salary Savings se kharch') + `
-      <p style="font-size:.78rem;color:var(--text-secondary)">Abhi jama: <strong>${money(getSalaryPool().left)}</strong></p>
+    openModal(head(s ? '✏️ Edit spend' : '➖ Spend from Salary Savings') + `
+      <p style="font-size:.78rem;color:var(--text-secondary)">Saved now: <strong>${money(getSalaryPool().left)}</strong></p>
       <div class="form-group"><label class="form-label">Amount (₹)</label><input id="ssAmt" type="number" inputmode="decimal" class="form-input" value="${s ? s.amount : ''}"></div>
       <div class="form-group"><label class="form-label">Note</label><input id="ssNote" class="form-input" value="${s ? escapeHtml(s.note) : ''}" placeholder="e.g. Phone repair"></div>
       <button class="btn-primary" style="justify-content:center;padding:12px" onclick="saveSalarySpend('${id}')">Save</button>`);
   };
   const saveSalarySpend = (id) => {
     const amt = Number($v('ssAmt')), note = $v('ssNote').trim() || 'Kharch';
-    if (!amt || amt <= 0) { showToast('Sahi amount likho'); return; }
+    if (!amt || amt <= 0) { showToast('Enter a valid amount'); return; }
     const f = id ? findSalarySpend(id) : null;
     if (f) { f.s.amount = amt; f.s.note = note; }
     else { const m = getCurrentMonthData(); (m.salarySpend = m.salarySpend || []).unshift({ id: 'ss_' + Date.now(), amount: amt, note, date: todayStr() }); }
@@ -2381,7 +2413,7 @@ ${n.body}`;
   const openSalaryHistoryModal = () => {
     const rows = []; Object.values(appState.months).forEach(m => (m.salarySpend || []).forEach(s => rows.push(s)));
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    openModal(head('🧾 Kharch history') + (rows.length ? rows.map(s => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-color)"><div><div style="font-weight:700;font-size:.85rem">${escapeHtml(s.note)}</div><div style="font-size:.72rem;color:var(--text-muted)">${s.date || ''}</div></div><div style="display:flex;gap:6px;align-items:center"><strong style="color:var(--danger)">${money(s.amount)}</strong><button class="btn-secondary" style="padding:6px 8px" onclick="openSalarySpendModal('${s.id}')">✏️</button><button class="btn-secondary" style="padding:6px 8px" onclick="delSalarySpend('${s.id}')">🗑️</button></div></div>`).join('') : '<p style="color:var(--text-secondary);font-size:.85rem">Abhi koi kharch nahi.</p>'));
+    openModal(head('🧾 Spend history') + (rows.length ? rows.map(s => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-color)"><div><div style="font-weight:700;font-size:.85rem">${escapeHtml(s.note)}</div><div style="font-size:.72rem;color:var(--text-muted)">${s.date || ''}</div></div><div style="display:flex;gap:6px;align-items:center"><strong style="color:var(--danger)">${money(s.amount)}</strong><button class="btn-secondary" style="padding:6px 8px" onclick="openSalarySpendModal('${s.id}')">✏️</button><button class="btn-secondary" style="padding:6px 8px" onclick="delSalarySpend('${s.id}')">🗑️</button></div></div>`).join('') : '<p style="color:var(--text-secondary);font-size:.85rem">No spends yet.</p>'));
   };
   const delSalarySpend = (id) => {
     const f = findSalarySpend(id); if (!f) return;
@@ -2412,7 +2444,7 @@ ${n.body}`;
     const [col, msg] = planVerdict(d);
     el.innerHTML = `<div class="card" style="border-color:${col}"><div style="font-weight:800;font-size:.9rem">📊 Budget check (${d.count} pending plan, ${money(d.total)})</div>
       <div style="color:${col};font-weight:700;font-size:.85rem;margin-top:4px">${msg}</div>
-      <div style="font-size:.74rem;color:var(--text-secondary);margin-top:4px">Mahine ke end tak, agar saare pending plans ho jayein toh.</div>
+      <div style="font-size:.74rem;color:var(--text-secondary);margin-top:4px">By month end, if all pending plans happen.</div>
       ${d.over.length ? `<div style="font-size:.78rem;margin-top:6px;color:var(--danger)">${d.over.join('<br>')}</div>` : ''}</div>`;
   };
   const updatePlanWarn = (planId) => {
@@ -2428,21 +2460,21 @@ ${n.body}`;
     const v = document.getElementById('appVerLabel'); if (!v) return;
     v.textContent = 'v' + APP_VERSION;
     document.getElementById('whatsNewList').innerHTML = WHATS_NEW.map(x => `<li>${escapeHtml(x)}</li>`).join('');
-    document.getElementById('calHideBtn').textContent = appState.calHide === false ? '👁️ Calendar mein naam/amount dikh raha hai (chhupao)' : '🙈 Calendar mein naam/amount chhupa hai (dikhao)';
-    document.getElementById('dueAlertBtn').textContent = appState.noAlert !== false ? '🔕 App kholte hi alert band hai (chalu karo)' : '🔔 App kholte hi alert chalu hai (band karo)';
-    document.getElementById('animBtn').textContent = appState.noAnim ? '✨ Animations chalu karo' : '🚫 Animations band karo';
+    document.getElementById('calHideBtn').textContent = appState.calHide === false ? '👁️ Calendar shows name and amount (hide)' : '🙈 Calendar hides name and amount (show)';
+    document.getElementById('dueAlertBtn').textContent = appState.noAlert !== false ? '🔕 Popup alert on open is off (turn on)' : '🔔 Popup alert on open is on (turn off)';
+    document.getElementById('animBtn').textContent = appState.noAnim ? '✨ Turn animations on' : '🚫 Turn animations off';
   };
   const toggleAnim = () => { appState.noAnim = !appState.noAnim; saveState(); renderAll(); };
   const downloadAutoBackup = () => {
     let raw = null; try { raw = localStorage.getItem(STORAGE_KEY + '_autobackup'); } catch (e) {}
-    if (!raw) { showToast('Auto-backup nahi mila'); return; }
+    if (!raw) { showToast('No auto-backup found'); return; }
     const url = URL.createObjectURL(new Blob([raw], { type: 'application/json' })), a = document.createElement('a');
     a.href = url; a.download = 'SmartBudget_AutoBackup.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-    showToast('Download ho gaya ✓');
+    showToast('Downloaded ✓');
   };
   const restoreAutoBackup = () => {
     let raw = null; try { raw = localStorage.getItem(STORAGE_KEY + '_autobackup'); } catch (e) {}
-    if (!raw) { showToast('Auto-backup nahi mila'); return; }
+    if (!raw) { showToast('No auto-backup found'); return; }
     if (!window._ok) { askConfirm('Current data will be replaced by the pre-update backup. Continue?', 'window._ok=true;restoreAutoBackup();window._ok=false'); return; }
     try { applyRestoredData(JSON.parse(raw)); } catch (e) { showToast('Backup kharab hai'); }
   };
@@ -2456,7 +2488,7 @@ ${n.body}`;
   const dueTag = (u) => {
     if (!u.due || udSettled(u)) return '';
     const d = daysFromToday(u.due);
-    const [c, t] = d < 0 ? ['var(--danger)', `${-d} din late`] : d === 0 ? ['var(--warning)', 'Aaj due'] : d <= 3 ? ['var(--warning)', `${d} din baaki`] : ['var(--text-muted)', `${d} din baaki`];
+    const [c, t] = d < 0 ? ['var(--danger)', `${-d} din late`] : d === 0 ? ['var(--warning)', 'Due today'] : d <= 3 ? ['var(--warning)', `${d} days left`] : ['var(--text-muted)', `${d} days left`];
     return `<div style="margin-top:4px;font-size:.72rem;font-weight:700;color:${c}">● ${u.type === 'lent' ? 'Expected back' : 'Pay back by'}: ${u.due} (${t})</div>`;
   };
   const renderUdDueSummary = () => {
@@ -2495,7 +2527,7 @@ ${n.body}`;
       (m.extraIncome || []).forEach(x => rows.push({ k: 'inc', date: x.date || ym + '-01', title: x.note || 'Extra income', sub: 'Income', amt: Number(x.amount), sign: 1, del: x.id, tm: x.time || timeFromId(x.id) }));
       (m.expenses || []).forEach(e => { const c = (m.categories || []).find(c => c.id === e.catId); rows.push({ k: 'out', date: e.date || ym + '-01', title: e.note || (c ? c.name : 'Kharch'), sub: c ? c.name : 'Kharch', amt: Number(e.amount), sign: -1, exp: e.id, cat: e.catId, tm: e.time || timeFromId(e.id) }); });
     });
-    (appState.funds || []).forEach(f => (f.history || []).forEach(h => { rows.push({ k: 'fund', date: h.date, title: f.name, sub: h.type === 'add' ? 'Fund mein jama' : 'Fund se nikala', amt: Number(h.amount), sign: h.type === 'add' ? 0 : 0, tag: h.type === 'add' ? '+' : '−', tm: h.time || timeFromId(h.id) }); }));
+    (appState.funds || []).forEach(f => (f.history || []).forEach(h => { rows.push({ k: 'fund', date: h.date, title: f.name, sub: h.type === 'add' ? 'Added to fund' : 'Fund se nikala', amt: Number(h.amount), sign: h.type === 'add' ? 0 : 0, tag: h.type === 'add' ? '+' : '−', tm: h.time || timeFromId(h.id) }); }));
     appState.udhaar.forEach(u => (u.history || []).forEach(h => { rows.push({ k: 'ud', date: h.date || '', title: u.person, sub: `${u.type === 'lent' ? 'Udhaar diya' : 'Udhaar liya'} · ${h.action || ''}`, amt: Number(h.amount), sign: 0, tm: h.time || timeFromId(h.id) }); }));
     return rows.filter(r => inPeriod(r.date, period)).sort((x, y) => (y.date || '').localeCompare(x.date || ''));
   };
@@ -2508,7 +2540,7 @@ ${n.body}`;
     document.getElementById('txChips').innerHTML = chip('all', 'Sab') + chip('out', 'Kharch') + chip('inc', 'Income') + chip('fund', 'Fund') + chip('ud', 'Udhaar') ; document.getElementById('txPeriods').innerHTML = PERIODS.map(([v, t]) => `<button class="btn-secondary" style="padding:6px 12px;font-size:.76rem;white-space:nowrap;${txPeriod === v ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="txPeriod='${v}';renderTxns()">${t}</button>`).join('');
     const q = txQ.trim().toLowerCase();
     const rows = all.filter(r => (txType === 'all' || r.k === txType) && (!q || `${r.title} ${r.sub} ${r.amt}`.toLowerCase().includes(q)));
-    if (!rows.length) { el.innerHTML = '<div class="empty-state">Koi transaction nahi mila.</div>'; return; }
+    if (!rows.length) { el.innerHTML = '<div class="empty-state">No transactions found.</div>'; return; }
     const col = { out: 'var(--danger)', inc: 'var(--success)', fund: 'var(--accent)', ud: 'var(--warning)' };
     el.innerHTML = rows.map(r => {
       const act = r.exp ? `openEditExpenseModal('${r.exp}','${r.cat}')` : r.del ? `askConfirm('Delete this income?','delExtraIncome(\'${r.del}\')')` : r.k === 'fund' ? "switchMainTab('funds')" : r.k === 'ud' ? "switchMainTab('udhaar')" : '';
@@ -2535,10 +2567,10 @@ ${n.body}`;
     if (!od.length && !td.length && !up.length && !udo.length && !udt.length) return;
     const udBlk = (ttl, col, arr) => arr.length ? `<div style="margin-bottom:10px"><div style="font-weight:800;color:${col};font-size:.85rem">${ttl}</div>${arr.map(u => `<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:4px 0"><span>${escapeHtml(u.person)} <span style="color:var(--text-muted)">(${u.type === 'lent' ? 'lene' : 'dene'}, ${u.due})</span></span><strong>${money(Number(u.totalAmount) - Number(u.paidAmount))}</strong></div>`).join('')}</div>` : '';
     const blk = (ttl, col, arr) => arr.length ? `<div style="margin-bottom:10px"><div style="font-weight:800;color:${col};font-size:.85rem">${ttl}</div>${arr.map(p => `<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:4px 0"><span>${escapeHtml(p.title)} <span style="color:var(--text-muted)">(${p.date})</span></span><strong>${money(p.amount)}</strong></div>`).join('')}</div>` : '';
-    openModal(head('🔔 Yaad dilaane ke liye') + blk('⚠️ Overdue', 'var(--danger)', od) + blk('📌 Aaj due', 'var(--warning)', td) + blk('⏳ 3 din ke andar', 'var(--accent)', up) + udBlk('💸 Udhaar overdue', 'var(--danger)', udo) + udBlk('💸 Udhaar jaldi', 'var(--warning)', udt) + `<button class="btn-primary" style="justify-content:center;padding:12px" onclick="closeModal();switchMainTab('plans')">Plans dekho</button>`);
+    openModal(head('🔔 Reminders') + blk('⚠️ Overdue', 'var(--danger)', od) + blk('📌 Due today', 'var(--warning)', td) + blk('⏳ 3 din ke andar', 'var(--accent)', up) + udBlk('💸 Udhaar overdue', 'var(--danger)', udo) + udBlk('💸 Udhaar due soon', 'var(--warning)', udt) + `<button class="btn-primary" style="justify-content:center;padding:12px" onclick="closeModal();switchMainTab('plans')">Plans dekho</button>`);
   };
   const addPlanToCalendar = (id) => {
-    const p = allPlans().find(x => x.id === id); if (!p || !p.date) { showToast('Plan ki date nahi hai'); return; }
+    const p = allPlans().find(x => x.id === id); if (!p || !p.date) { showToast('This plan has no date'); return; }
     const hide = appState.calHide !== false, ymd = p.date.replace(/-/g, '');
     const nx = new Date(p.date + 'T00:00:00'); nx.setDate(nx.getDate() + 1);
     const end = `${nx.getFullYear()}${String(nx.getMonth() + 1).padStart(2, '0')}${String(nx.getDate()).padStart(2, '0')}`;
@@ -2550,7 +2582,7 @@ ${n.body}`;
       'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(title)}`, 'TRIGGER:PT9H', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
     const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })), a = document.createElement('a');
     a.href = url; a.download = 'reminder.ics'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-    showToast('Download file kholo, Calendar mein "Phone/Device" chuno');
+    showToast('Open the file, then in Calendar "Phone/Device" chuno');
   };
 
   /* ==========================================================================
@@ -2597,16 +2629,18 @@ ${n.body}`;
 
   /* ---- [ALERTS] bell ---- */
   const getAlerts = () => {
-    const a = [], m = getCurrentMonthData(), mt = getMonthMetrics(appState.selectedMonth);
+    const a = [], m = getCurrentMonthData(), mt = getMonthMetrics(appState.selectedMonth), mk = appState.selectedMonth;
     const when = (d) => d < 0 ? `${-d} day${d === -1 ? '' : 's'} overdue` : d === 0 ? 'Due today' : `Due in ${d} day${d === 1 ? '' : 's'}`;
     allPlans().filter(p => !p.marked && p.date).forEach(p => { const d = daysFromToday(p.date); if (d <= 3) a.push({ key: 'plan:' + p.id, ic: 'clock', title: p.title, detail: when(d), amt: Number(p.amount), go: 'plans' }); });
     appState.udhaar.filter(u => u.due && udRem(u) > 0).forEach(u => { const d = daysFromToday(u.due); if (d <= 3) a.push({ key: 'ud:' + u.id, ic: 'users', title: u.person, detail: (u.type === 'lent' ? 'To receive · ' : 'To pay · ') + when(d), amt: udRem(u), go: 'udhaar' }); });
-    (m.categories || []).forEach(c => { const sp = m.expenses.filter(e => e.catId === c.id).reduce((x, e) => x + Number(e.amount), 0); if (Number(c.limit) > 0 && sp > c.limit) a.push({ key: 'cat:' + c.id, ic: 'warn', title: c.name + ' over limit', detail: `Spent ${formatINR(sp)} of ${formatINR(c.limit)}`, amt: sp - c.limit, go: 'budget' }); });
-    if (mt.netActualSaving < 0) a.push({ key: 'over', ic: 'warn', title: 'Overspent this month', detail: 'Spending is more than income', amt: -mt.netActualSaving, go: 'budget' });
+    (m.categories || []).forEach(c => { const sp = m.expenses.filter(e => e.catId === c.id).reduce((x, e) => x + Number(e.amount), 0); if (Number(c.limit) > 0 && sp > c.limit) a.push({ key: 'cat:' + c.id + ':' + mk, ic: 'warn', title: c.name + ' over limit', detail: `Spent ${formatINR(sp)} of ${formatINR(c.limit)}`, amt: sp - c.limit, go: 'budget' }); });
+    if (mt.netActualSaving < 0) a.push({ key: 'over:' + mk, ic: 'warn', title: 'Overspent this month', detail: 'Spending is more than income', amt: -mt.netActualSaving, go: 'budget' });
     const bd = appState.lastBackup ? -daysFromToday(appState.lastBackup) : null;
     if (bd === null || bd > 14) a.push({ key: 'backup', ic: 'save', title: 'Backup', detail: bd === null ? 'No backup taken yet' : `Last backup ${bd} days ago`, amt: 0, go: 'settings' });
-    return a;
+    return a.filter(x => !(appState.alertsDismissed || []).includes(x.key));
   };
+  const dismissAlert = (k) => { (appState.alertsDismissed = appState.alertsDismissed || []).push(k); saveState(); renderBell(); openAlerts(); };
+  const dismissAll = () => { appState.alertsDismissed = (appState.alertsDismissed || []).concat(getAlerts().map(x => x.key)); saveState(); renderBell(); openAlerts(); };
   const AL_ICON = { clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>', warn: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>', save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8"/>' };
   const renderBell = () => { const b = document.getElementById('bellBadge'); if (!b) return; const seen = appState.alertsSeen || [], n = getAlerts().filter(x => !seen.includes(x.key)).length; b.style.display = n ? 'flex' : 'none'; b.textContent = n > 9 ? '9+' : n; };
   const openAlerts = () => {
@@ -2614,7 +2648,7 @@ ${n.body}`;
     openModal(head('Alerts') + (a.length ? a.map(x => `<div onclick="closeModal();switchMainTab('${x.go}')" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-color);cursor:pointer;color:var(--text-primary)">
       <div style="width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--bg-card-alt);flex-shrink:0"><svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">${AL_ICON[x.ic]}</svg></div>
       <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.9rem">${escapeHtml(x.title)}</div><div style="font-size:.76rem;color:var(--text-secondary)">${escapeHtml(x.detail)}</div></div>
-      ${x.amt ? `<div style="font-weight:800;font-size:.82rem;padding:4px 10px;border-radius:20px;border:1px solid var(--border-color)">${formatINR(x.amt)}</div>` : ''}</div>`).join('') : '<p style="color:var(--text-secondary);font-size:.88rem;padding:10px 0">You are all caught up.</p>'));
+      ${x.amt ? `<div style="font-weight:800;font-size:.82rem;padding:4px 10px;border-radius:20px;border:1px solid var(--border-color)">${formatINR(x.amt)}</div>` : ''}<button class="btn-secondary" style="padding:4px 9px;font-size:.7rem" onclick="event.stopPropagation();dismissAlert('${x.key}')">Dismiss</button></div>`).join('') + `<button class="btn-secondary" style="width:100%;justify-content:center;padding:11px;margin-top:12px" onclick="dismissAll()">Dismiss all</button>` : '<p style="color:var(--text-secondary);font-size:.88rem;padding:10px 0">You are all caught up.</p>'));
     appState.alertsSeen = a.map(x => x.key); saveState(); renderBell();
   };
 
@@ -2731,7 +2765,29 @@ ${n.body}`;
   });
   history.replaceState({ h: 1 }, ''); history.pushState({ g: 1 }, '');
 
+  /* ---- [ICONS] UI emoji -> ek jaise line icons (category/fund icons wale emoji nahi badalte) ---- */
+  const UI_ICONS = {
+    '✏️': '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>', '🗑️': '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5"/>',
+    '⚠️': '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>', '🚨': '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',
+    '🔔': '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/>', '🔕': '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18M3 3l18 18"/>',
+    '📅': '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>', '📌': '<path d="M12 17v5M9 3h6l-1 7 3 3H7l3-3z"/>', '📝': '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6"/>',
+    '🔒': '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>', '🔍': '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>', '➖': '<path d="M5 12h14"/>', '🧾': '<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2zM9 8h6M9 12h6"/>',
+    '💸': '<circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/>', '📤': '<path d="M12 15V3m0 0L8 7m4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>', '👁️': '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>', '🙈': '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12zM3 3l18 18"/>',
+    '🌙': '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>', '☀️': '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>', '♻️': '<path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/>', '⬇️': '<path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16"/>', '✨': '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>', '🚫': '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>'
+  };
+  const UI_RE = new RegExp(Object.keys(UI_ICONS).join('|'), 'g'), SKIP = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'OPTION', 'TITLE', 'INPUT']);
+  const iconify = (root) => {
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), hits = [];
+    while (w.nextNode()) { const n = w.currentNode; if (n.parentNode && !SKIP.has(n.parentNode.tagName) && UI_RE.test(n.nodeValue)) hits.push(n); UI_RE.lastIndex = 0; }
+    hits.forEach(n => { const frag = document.createDocumentFragment(); let last = 0, m; UI_RE.lastIndex = 0;
+      while ((m = UI_RE.exec(n.nodeValue))) { frag.appendChild(document.createTextNode(n.nodeValue.slice(last, m.index))); const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', '1.05em'); s.setAttribute('height', '1.05em'); s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round'); s.style.cssText = 'vertical-align:-.15em;margin-right:.25em;flex-shrink:0'; s.innerHTML = UI_ICONS[m[0]]; frag.appendChild(s); last = m.index + m[0].length; }
+      frag.appendChild(document.createTextNode(n.nodeValue.slice(last))); n.parentNode.replaceChild(frag, n); });
+  };
+  let _icoBusy = false;
+  const startIconify = () => { iconify(document.body); new MutationObserver(() => { if (_icoBusy) return; _icoBusy = true; requestAnimationFrame(() => { iconify(document.body); _icoBusy = false; }); }).observe(document.body, { childList: true, subtree: true, characterData: true }); };
+
   window.onload = () => {
+    startIconify();
     loadState();
     applyRecurring();
     applyTheme();

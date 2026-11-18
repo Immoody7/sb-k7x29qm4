@@ -7,7 +7,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="app-icon-192.png" />
   <title>SmartBudget - Personal Finance & Udhaar Manager</title>
-  <link rel="stylesheet" href="style.css?v=6.4" />
+  <link rel="stylesheet" href="style.css?v=6.5" />
 </head>
 <body>
   <div id="splash"><div class="sp-in"><svg class="sp-logo" viewBox="0 0 100 100" width="132" height="132"><defs><linearGradient id="spg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c6cff"/><stop offset=".55" stop-color="#b266ff"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs><circle cx="50" cy="50" r="48" fill="url(#spg)"/><text x="50" y="68" text-anchor="middle" font-size="56" font-weight="800" fill="#fff" font-family="sans-serif">₹</text></svg><div class="sp-name">SmartBudget</div><div class="sp-bar"><i></i></div></div></div>
@@ -151,7 +151,7 @@
           </div>
           <div style="display:flex;flex-direction:column;gap:6px">
             <button class="btn-primary" style="background:var(--success);" onclick="openSalarySavingModal()">+ Add / Edit</button>
-            <button class="btn-secondary" style="justify-content:center;padding:8px" onclick="openSalarySpendModal()">➖ Kharch kiya</button>
+            <button class="btn-secondary" style="justify-content:center;padding:8px" onclick="openSalarySpendModal()">➖ Spent</button>
             <button class="btn-secondary" style="justify-content:center;padding:8px" onclick="openSalaryHistoryModal()">🧾 History</button>
           </div>
         </div>
@@ -170,6 +170,7 @@
         </div>
       </div>
 
+      <div id="fundFilterChips" style="display:flex;gap:6px;margin:4px 0 8px;overflow-x:auto"></div>
       <div id="fundsListContainer" style="display:flex; flex-direction:column; gap:12px;"></div>
     </section>
 
@@ -221,11 +222,11 @@
       <input id="udSearch" class="form-input" placeholder="Search name or note" oninput="udQ=this.value;renderUdhaarTab()" style="margin-bottom:8px">
       <div class="udhaar-summary">
         <div class="card" style="padding:12px 14px;">
-          <div class="label-xs" style="color:var(--success);">Lena Baki (Lent)</div>
+          <div class="label-xs" style="color:var(--success);">To receive (Lent)</div>
           <div style="font-size:1.2rem; font-weight:800; color:var(--success);" id="summaryLentPending">₹0</div>
         </div>
         <div class="card" style="padding:12px 14px;">
-          <div class="label-xs" style="color:var(--danger);">Dena Baki (Borrowed)</div>
+          <div class="label-xs" style="color:var(--danger);">To pay (Borrowed)</div>
           <div style="font-size:1.2rem; font-weight:800; color:var(--danger);" id="summaryBorrowedPending">₹0</div>
         </div>
       </div>
@@ -348,7 +349,7 @@
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Save / Download Backup (.json)
         </button>
-        <button class="btn-secondary" style="justify-content:center; padding:12px;" onclick="shareBackupFile()">📤 Backup Drive / Files mein bhejo</button>
+        <button class="btn-secondary" style="justify-content:center; padding:12px;" onclick="shareBackupFile()">📤 Send backup to Drive / Files</button>
 
         <button type="button" class="btn-secondary" style="justify-content:center; padding:12px; cursor:pointer;" onclick="triggerRestorePicker()">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -387,8 +388,8 @@
         <div style="font-weight:800;font-size:.8rem">What's new in this version</div>
         <ul class="whatsnew" id="whatsNewList"></ul>
         <button class="btn-secondary" style="justify-content:center;" onclick="toggleAnim()" id="animBtn"></button>
-        <button class="btn-secondary" style="justify-content:center;" onclick="restoreAutoBackup()">♻️ Update se pehle ka auto-backup wapas lao</button>
-        <button class="btn-secondary" style="justify-content:center;" onclick="downloadAutoBackup()">⬇️ Auto-backup file download karo</button>
+        <button class="btn-secondary" style="justify-content:center;" onclick="restoreAutoBackup()">♻️ Restore the auto-backup from before the update</button>
+        <button class="btn-secondary" style="justify-content:center;" onclick="downloadAutoBackup()">⬇️ Download auto-backup file</button>
       </div>
     </section>
 
@@ -446,6 +447,6 @@
   </div>
 </div>
 
-<script src="app.js?v=6.4"></script>
+<script src="app.js?v=6.5"></script>
 </body>
 </html>
