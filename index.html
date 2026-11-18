@@ -7,7 +7,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="app-icon-192.png" />
   <title>SmartBudget - Personal Finance & Udhaar Manager</title>
-  <link rel="stylesheet" href="style.css?v=6.0" />
+  <link rel="stylesheet" href="style.css?v=6.1" />
 </head>
 <body>
   <div id="splash"><div class="sp-in"><svg class="sp-logo" viewBox="0 0 100 100" width="132" height="132"><defs><linearGradient id="spg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c6cff"/><stop offset=".55" stop-color="#b266ff"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs><circle cx="50" cy="50" r="48" fill="url(#spg)"/><text x="50" y="68" text-anchor="middle" font-size="56" font-weight="800" fill="#fff" font-family="sans-serif">₹</text></svg><div class="sp-name">SmartBudget</div><div class="sp-bar"><i></i></div></div></div>
@@ -15,7 +15,7 @@
 <div class="app-shell">
   <!-- TOP HEADER -->
   <header class="app-header">
-    <div class="brand-title">
+    <div class="brand-title" onclick="goHome()" style="cursor:pointer">
       <div class="brand-logo">₹</div>
       <span>SmartBudget</span>
     </div>
@@ -380,7 +380,7 @@
       <div class="card" style="display:flex; flex-direction:column; gap:10px;">
         <h3 class="section-title">App ke baare mein</h3>
         <div style="font-size:.82rem;color:var(--text-secondary)">SmartBudget <strong id="appVerLabel"></strong></div>
-        <div style="font-weight:800;font-size:.8rem">Naya kya hai</div>
+        <div style="font-weight:800;font-size:.8rem">What's new in this version</div>
         <ul class="whatsnew" id="whatsNewList"></ul>
         <button class="btn-secondary" style="justify-content:center;" onclick="toggleAnim()" id="animBtn"></button>
         <button class="btn-secondary" style="justify-content:center;" onclick="restoreAutoBackup()">♻️ Update se pehle ka auto-backup wapas lao</button>
@@ -435,11 +435,12 @@
   </div>
 
   <!-- DYNAMIC MODAL BACKDROP & SHEET -->
+  <div id="exitDlg"><div class="exit-box"><div class="exit-title">Close the app?</div><div class="exit-text">Do you want to exit SmartBudget?</div><div class="exit-btns"><button class="btn-secondary" onclick="hideExitDlg()">No</button><button class="btn-primary" onclick="exitApp()">Yes, close</button></div></div></div>
   <div class="modal-backdrop" id="modalBackdrop" onclick="closeModalOnBackdrop(event)">
     <div class="modal-sheet" id="modalSheetContent"></div>
   </div>
 </div>
 
-<script src="app.js?v=6.0"></script>
+<script src="app.js?v=6.1"></script>
 </body>
 </html>

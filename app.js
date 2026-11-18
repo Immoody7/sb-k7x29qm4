@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'smart_budget_india_v2';
-  const APP_VERSION = '6.0';
-  const WHATS_NEW = ['New alerts design, tap to open, seen badge', 'Insights graphs and Recurring expenses (menu)', 'Files split: index.html, style.css, app.js', 'Safer backup restore', 'Plan mark karne par ab wo category mein judta hai', 'Salary Savings: kul jama + kharch kiya + history', 'Naya ☰ menu aur alag Settings screen', 'Halki animations (Settings mein band kar sakte ho)', 'Update se pehle auto-backup (download bhi kar sakte ho)', 'Plans mein Budget check: pending plans se budget bachega ya nahi', 'Notes/Settings/Calculator mein ← Back button', 'PIN recovery code: PIN bhoolne par data bachta hai', 'Naya premium look', 'App kholte hi due/overdue alert', 'Plan se Calendar reminder (📅), naam/amount chhupane ka option', 'Transactions tab: sab entries ek list mein, search aur filter', 'Udhaar mein due date aur overdue tag', 'Kholte hi animation aur naya icon', 'Splash ka rang Android splash jaisa, tez khulna', 'Udhaar: history, group, search, Remind', 'Alerts bell, Time, Back button, First-run setup'];
+  const APP_VERSION = '6.1';
+  const WHATS_NEW = ['Close dialog now in the center, and Yes closes the app properly', 'Udhaar: separate wording for Lent and Borrowed due dates', 'Plan mark: cancelling the category box now shows the plan unmarked', 'Dashboard donut: every category gets its own color', 'Tap the logo to go to the dashboard', 'Version numbering: 6.1, 6.2 ... 6.10, then 7.0'];
 
   const formatINR = (num) => {
     const val = Math.round(Number(num) || 0);
@@ -864,6 +864,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
   };
 
   const closeModal = () => {
+    if (window._rrc) { window._rrc = false; renderAll(); }
     const backdrop = document.getElementById('modalBackdrop');
     if (modalPushed) { modalPushed = false; window._pb = setTimeout(() => { window._pb = null; ignorePop++; history.back(); }, 60); }
     backdrop.classList.remove('open');
@@ -1444,9 +1445,9 @@ const STORAGE_KEY = 'smart_budget_india_v2';
       </div>
       <div class="form-group">
         <label class="form-label">Transaction Type</label>
-        <select id="udType" class="form-select">
-          <option value="lent" ${activeUdhaarSubTab === 'lent' ? 'selected' : ''}>Maine Diye (Lent - Lena Baki)</option>
-          <option value="borrowed" ${activeUdhaarSubTab === 'borrowed' ? 'selected' : ''}>Maine Liye (Borrowed - Dena Baki)</option>
+        <select id="udType" class="form-select" onchange="document.getElementById('udDueLbl').textContent = this.value === 'borrowed' ? 'I will pay back by (optional)' : 'Expected back by (optional)'">
+          <option value="lent" ${activeUdhaarSubTab === 'lent' ? 'selected' : ''}>Lent (I will receive)</option>
+          <option value="borrowed" ${activeUdhaarSubTab === 'borrowed' ? 'selected' : ''}>Borrowed (I have to pay)</option>
         </select>
       </div>
       <div class="form-group">
@@ -1462,7 +1463,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
         <input type="date" id="udDate" class="form-input" value="${today}" /><label class="form-label" style="margin-top:6px">Time</label><input type="time" id="udTime" class="form-input" value="${nowHM()}" />
       </div>
       <div class="form-group">
-        <label class="form-label">Wapas kab chahiye? (optional)</label>
+        <label class="form-label" id="udDueLbl">${activeUdhaarSubTab === 'borrowed' ? 'I will pay back by (optional)' : 'Expected back by (optional)'}</label>
         <input type="date" id="udDue" class="form-input" />
         <div style="display:flex;gap:6px;margin-top:6px">${[7, 15, 30].map(n => `<button type="button" class="btn-secondary" style="padding:6px 10px;font-size:.74rem" onclick="setUdDue('udDue',${n})">${n} din baad</button>`).join('')}</div>
       </div>
@@ -1589,7 +1590,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
         <textarea id="editUdNotes" class="form-textarea" rows="3">${escapeHtml(item.notes || '')}</textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">Wapas kab chahiye?</label>
+        <label class="form-label">${item.type === 'borrowed' ? 'I will pay back by' : 'Expected back by'}</label>
         <input type="date" id="editUdDue" class="form-input" value="${item.due || ''}" />
         <div style="display:flex;gap:6px;margin-top:6px">${[7, 15, 30].map(n => `<button type="button" class="btn-secondary" style="padding:6px 10px;font-size:.74rem" onclick="setUdDue('editUdDue',${n})">${n} din baad</button>`).join('')}</div>
       </div>
@@ -1909,9 +1910,10 @@ ${n.body}`;
     if (!total) {
       donut.innerHTML = '<div style="font-size:.8rem;color:var(--text-muted);padding:8px 0;">No expenses this month yet.</div>';
     } else {
+      const PAL = ['#6d5efc', '#f472b6', '#10b981', '#f59e0b', '#38bdf8', '#ef4444', '#a855f7', '#14b8a6', '#eab308', '#fb7185']; spent.sort((p, q) => q.v - p.v); spent.forEach((x, i) => { x.col = PAL[i % PAL.length]; });
       const R = 42, C = 2 * Math.PI * R; let acc = 0;
-      const arcs = spent.map(x => { const seg = x.v / total * C; const el = `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${x.c.color}" stroke-width="18" stroke-dasharray="${seg} ${C - seg}" stroke-dashoffset="${-acc}" transform="rotate(-90 60 60)"/>`; acc += seg; return el; }).join('');
-      const legend = spent.sort((a, b) => b.v - a.v).map(x => `<div class="legend-row"><span class="legend-dot" style="background:${x.c.color}"></span><span style="flex:1">${x.c.icon} ${escapeHtml(x.c.name)}</span><strong>${formatINR(x.v)}</strong><span style="color:var(--text-muted);width:34px;text-align:right">${Math.round(x.v / total * 100)}%</span></div>`).join('');
+      const arcs = spent.map(x => { const seg = x.v / total * C; const el = `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${x.col}" stroke-width="18" stroke-dasharray="${seg} ${C - seg}" stroke-dashoffset="${-acc}" transform="rotate(-90 60 60)"/>`; acc += seg; return el; }).join('');
+      const legend = spent.sort((a, b) => b.v - a.v).map(x => `<div class="legend-row"><span class="legend-dot" style="background:${x.col}"></span><span style="flex:1">${x.c.icon} ${escapeHtml(x.c.name)}</span><strong>${formatINR(x.v)}</strong><span style="color:var(--text-muted);width:34px;text-align:right">${Math.round(x.v / total * 100)}%</span></div>`).join('');
       donut.innerHTML = `<div style="display:flex;justify-content:center;"><svg viewBox="0 0 120 120" width="170" height="170">${arcs}<text x="60" y="58" text-anchor="middle" style="fill:var(--text-muted);font-size:8px">Spent</text><text x="60" y="71" text-anchor="middle" style="fill:var(--text-primary);font-size:11px;font-weight:800">${formatINR(total)}</text></svg></div>${legend}`;
     }
     // bars: last 6 months
@@ -2288,11 +2290,13 @@ ${n.body}`;
     placeExpense(exp, srcCat);
     plan.expId = exp.id;
   };
-  const openPlanCatPick = (planId) => openModal(head('Kaunsi category mein?') + `
+  const _openPlanCatPick = (planId) => openModal(head('Kaunsi category mein?') + `
     <div class="form-group"><select id="pickCat" class="form-input">${catOptions()}</select></div>
     <button class="btn-primary" style="justify-content:center;padding:12px" onclick="savePlanCatPick('${planId}',false)">Category mein jodo</button>
     <button class="btn-secondary" style="justify-content:center;padding:12px" onclick="savePlanCatPick('${planId}',true)">Sirf total mein</button>`);
+  const openPlanCatPick = (planId) => { window._rrc = true; _openPlanCatPick(planId); };
   const savePlanCatPick = (planId, skip) => {
+    window._rrc = false;
     const plan = (getCurrentMonthData().upcomingPlans || []).find(p => p.id === planId);
     if (!plan) return;
     plan.catId = skip ? '' : $v('pickCat'); plan.marked = true; syncPlanExpense(plan);
@@ -2409,7 +2413,7 @@ ${n.body}`;
     if (!u.due || udSettled(u)) return '';
     const d = daysFromToday(u.due);
     const [c, t] = d < 0 ? ['var(--danger)', `${-d} din late`] : d === 0 ? ['var(--warning)', 'Aaj due'] : d <= 3 ? ['var(--warning)', `${d} din baaki`] : ['var(--text-muted)', `${d} din baaki`];
-    return `<div style="margin-top:4px;font-size:.72rem;font-weight:700;color:${c}">● ${u.type === 'lent' ? 'Wapas milna' : 'Wapas dena'}: ${u.due} (${t})</div>`;
+    return `<div style="margin-top:4px;font-size:.72rem;font-weight:700;color:${c}">● ${u.type === 'lent' ? 'Expected back' : 'Pay back by'}: ${u.due} (${t})</div>`;
   };
   const renderUdDueSummary = () => {
     const el = document.getElementById('udhaarDueSummary'); if (!el) return;
@@ -2589,20 +2593,26 @@ ${n.body}`;
   const openSetupModal = () => openModal(head('Welcome to SmartBudget') + `<p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">Quick setup. You can change everything later.</p><div class="form-group"><label class="form-label">Monthly income (₹)</label><input id="suInc" type="number" inputmode="decimal" class="form-input" placeholder="e.g. 30000"></div><div class="form-group"><label class="form-label">Saving target (%)</label><input id="suPct" type="number" inputmode="decimal" class="form-input" value="20"></div><div class="form-group"><label class="form-label">Categories</label>${SETUP_CATS.map((c, i) => `<label style="display:flex;gap:8px;align-items:center;padding:4px 0;font-size:.86rem"><input type="checkbox" class="suCat" value="${i}" ${i < 4 ? 'checked' : ''}> ${c[1]} ${c[0]}</label>`).join('')}</div><button class="btn-primary" style="justify-content:center;padding:12px;margin-bottom:8px" onclick="saveSetup()">Start</button><button class="btn-secondary" style="justify-content:center" onclick="appState.setupDone=true;saveState();closeModal();renderAll()">Skip for now</button>`);
   const saveSetup = () => { const inc = Number($v('suInc')); if (!inc || inc <= 0) { showToast('Enter your monthly income'); return; } const m = getCurrentMonthData(); m.income = inc; m.targetSavingPct = Number($v('suPct')) || 20; const ch = [...document.querySelectorAll('.suCat:checked')].map(x => SETUP_CATS[x.value]); m.categories = ch.map((c, i) => ({ id: 'cat_' + Date.now() + i, name: c[0], icon: c[1], limit: Math.round(inc * c[2] / 100 / 100) * 100, color: c[3] })); appState.setupDone = true; saveState(); closeModal(); renderAll(); };
 
+  const goHome = () => { switchMainTab('budget'); window.scrollTo(0, 0); document.querySelectorAll('main,.app-main').forEach(e => { e.scrollTop = 0; }); };
+
   /* ---- [BACK BUTTON] ---- */
   let modalPushed = false, ignorePop = 0, navSilent = false;
   const activeTabName = () => { const e = document.querySelector('.tab-pane.active'); return e ? e.id.replace('tab-', '') : 'budget'; };
   let tabPushed = false;
   const navPush = (tab) => { if (navSilent) return; if (tab !== 'budget' && activeTabName() === 'budget') { history.pushState({ t: 1 }, ''); tabPushed = true; } else if (tab === 'budget' && tabPushed) { tabPushed = false; ignorePop++; history.back(); } };
-  const hideModalNow = () => { const b = document.getElementById('modalBackdrop'); b.classList.remove('open'); clearTimeout(window._mTimer); window._mTimer = setTimeout(() => { b.style.display = 'none'; }, 260); };
-  const exitApp = () => { modalPushed = false; ignorePop = 1; hideModalNow(); try { window.close(); } catch (e) {} history.go(-3); };
+  const hideModalNow = () => { if (window._rrc) { window._rrc = false; renderAll(); } const b = document.getElementById('modalBackdrop'); b.classList.remove('open'); clearTimeout(window._mTimer); window._mTimer = setTimeout(() => { b.style.display = 'none'; }, 260); };
+  let exiting = false;
+  const hideExitDlg = () => document.getElementById('exitDlg').classList.remove('open');
+  const exitApp = () => { exiting = true; hideExitDlg(); try { window.close(); } catch (e) {} history.back(); setTimeout(() => history.back(), 120); };
   window.addEventListener('popstate', () => {
+    if (exiting) return;
     if (ignorePop > 0) { ignorePop--; return; }
+    if (document.getElementById('exitDlg').classList.contains('open')) { history.pushState({ g: 1 }, ''); hideExitDlg(); return; }
     if (modalPushed) { modalPushed = false; hideModalNow(); return; }
     if (document.getElementById('lockScreen').style.display !== 'none' && document.getElementById('lockScreen').style.display !== '') { history.pushState({ g: 1 }, ''); return; }
     if (activeTabName() !== 'budget') { tabPushed = false; navSilent = true; switchMainTab('budget'); navSilent = false; return; }
     history.pushState({ g: 1 }, '');
-    openModal(head('Close the app?') + `<div style="display:flex;gap:10px;margin-top:10px"><button class="btn-secondary" style="flex:1;justify-content:center" onclick="closeModal()">No</button><button class="btn-primary" style="flex:1;justify-content:center" onclick="exitApp()">Yes, close</button></div>`);
+    document.getElementById('exitDlg').classList.add('open');
   });
   history.replaceState({ h: 1 }, ''); history.pushState({ g: 1 }, '');
 

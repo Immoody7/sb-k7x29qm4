@@ -1244,3 +1244,11 @@
     .nav-item span{letter-spacing:.01em}
     .tool-btn span svg{color:var(--accent)}
     .udhaar-card,.plan-card{border-radius:20px}
+
+    /* ===== v6.1 exit dialog ===== */
+    #exitDlg{position:fixed;inset:0;z-index:10001;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.55);backdrop-filter:blur(4px)}
+    #exitDlg.open{display:flex;animation:fadeSlideUp .25s ease both}
+    .exit-box{width:100%;max-width:320px;border-radius:22px;padding:22px 20px 18px;background:var(--bg-card);border:1px solid var(--border-color);box-shadow:var(--shadow-md);text-align:center}
+    .exit-title{font-weight:800;font-size:1.1rem;margin-bottom:6px}
+    .exit-text{font-size:.85rem;color:var(--text-secondary);margin-bottom:16px}
+    .exit-btns{display:flex;gap:10px}.exit-btns button{flex:1;justify-content:center;padding:12px}
