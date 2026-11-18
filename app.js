@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'smart_budget_india_v2';
-  const APP_VERSION = '6.5';
-  const WHATS_NEW = ['Funds: tap a fund for a details sheet, hold a card for quick actions, drag the handle to reorder', 'Funds: Active, Completed and All views, target date with On track / Behind tag', 'Alerts: Dismiss one or all', 'More of the app is now in English, and action icons are now clean line icons'];
+  const APP_VERSION = '6.6';
+  const WHATS_NEW = ['Tap any transaction for details and history', 'Expenses: Notes and Payment method (Cash, UPI, Card)', 'Insights: income vs expense, comparison with last month, spending by payment method', 'Settings: text size and storage usage, with a storage warning in Alerts', 'The whole app is now in English; Udhaar is now called Loans'];
 
   const formatINR = (num) => {
     const val = Math.round(Number(num) || 0);
@@ -1145,9 +1145,11 @@ const STORAGE_KEY = 'smart_budget_india_v2';
         <select id="expCat" class="form-select">${options}</select>
       </div>
       <div class="form-group">
-        <label class="form-label">Note / Item Details</label>
+        <label class="form-label">Item name</label>
         <input type="text" id="expNote" class="form-input" placeholder="e.g. Vegetables & Milk" />
       </div>
+      <div class="form-group"><label class="form-label">Notes (optional)</label><textarea id="expDesc" class="form-textarea" rows="2" placeholder="Any extra details"></textarea></div>
+      <div class="form-group"><label class="form-label">Payment method</label><select id="expPay" class="form-select">${["Cash","UPI","Card","Other"].map(p => `<option ${p === ('Cash') ? "selected" : ""}>${p}</option>`).join("")}</select></div>
       <div class="form-group">
         <label class="form-label">Date</label>
         <input type="date" id="expDate" class="form-input" value="${today}" /><label class="form-label" style="margin-top:6px">Time</label><input type="time" id="expTime" class="form-input" value="${nowHM()}" />
@@ -1176,7 +1178,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     const date = document.getElementById('expDate').value || todayStr();
     if (!amount || amount <= 0) { showToast('Please enter a valid amount'); return; }
     const srcCat = getCurrentMonthData().categories.find(c => c.id === catId);
-    const target = placeExpense({ id: 'exp_' + Date.now(), catId, amount, note: note || 'Expense', date, time: $v('expTime') || nowHM() }, srcCat);
+    const target = placeExpense({ id: 'exp_' + Date.now(), catId, amount, note: note || 'Expense', date, time: $v('expTime') || nowHM(), desc: $v('expDesc').trim(), pay: $v('expPay') }, srcCat);
     saveState(); closeModal(); renderAll();
     showToast(target === appState.selectedMonth ? `Added ${formatINR(amount)} expense!` : `Saved in ${formatMonthDisplay(target)}`);
   };
@@ -1190,7 +1192,9 @@ const STORAGE_KEY = 'smart_budget_india_v2';
       <div class="modal-header"><h3 class="modal-title">Edit Expense</h3><button class="close-btn" onclick="closeModal()">✕</button></div>
       <div class="form-group"><label class="form-label">Amount (₹)</label><input type="number" inputmode="decimal" id="expAmt" class="form-input" value="${e.amount}" /></div>
       <div class="form-group"><label class="form-label">Category</label><select id="expCat" class="form-select">${options}</select></div>
-      <div class="form-group"><label class="form-label">Note</label><input type="text" id="expNote" class="form-input" value="${escapeHtml(e.note)}" /></div>
+      <div class="form-group"><label class="form-label">Item name</label><input type="text" id="expNote" class="form-input" value="${escapeHtml(e.note)}" /></div>
+      <div class="form-group"><label class="form-label">Notes (optional)</label><textarea id="expDesc" class="form-textarea" rows="2">${escapeHtml(e.desc || '')}</textarea></div>
+      <div class="form-group"><label class="form-label">Payment method</label><select id="expPay" class="form-select">${["Cash","UPI","Card","Other"].map(p => `<option ${p === (e.pay || 'Cash') ? "selected" : ""}>${p}</option>`).join("")}</select></div>
       <div class="form-group"><label class="form-label">Date</label><input type="date" id="expDate" class="form-input" value="${e.date || ''}" /><label class="form-label" style="margin-top:6px">Time</label><input type="time" id="expTime" class="form-input" value="${e.time || timeFromId(e.id)}" /></div>
       <button class="btn-primary" style="justify-content:center; padding:12px;" onclick="saveExpenseEdit('${e.id}')">Save Changes</button>
     `);
@@ -1205,9 +1209,10 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     const catId = document.getElementById('expCat').value;
     const srcCat = mData.categories.find(c => c.id === catId);
     mData.expenses = mData.expenses.filter(x => x.id !== expId);
-    const target = placeExpense({ id: old.id, catId, amount,
-      note: document.getElementById('expNote').value.trim() || 'Expense',
-      date: document.getElementById('expDate').value || old.date, time: $v('expTime') || old.time }, srcCat);
+    const nn = { id: old.id, catId, amount, note: document.getElementById('expNote').value.trim() || 'Expense', date: document.getElementById('expDate').value || old.date, time: $v('expTime') || old.time, desc: $v('expDesc').trim(), pay: $v('expPay'), history: (old.history || []).slice() };
+    const ch = []; if (Number(old.amount) !== amount) ch.push(`Amount ${money(old.amount)} → ${money(amount)}`); if (old.note !== nn.note) ch.push(`Item name changed to "${nn.note}"`); if (old.catId !== catId) ch.push('Category changed'); if ((old.date || '') !== nn.date) ch.push(`Date ${old.date || 'none'} → ${nn.date}`); if ((old.pay || '') !== nn.pay) ch.push(`Payment ${old.pay || 'not set'} → ${nn.pay}`); if ((old.desc || '') !== nn.desc) ch.push('Notes updated');
+    ch.forEach(t => nn.history.unshift({ text: t, ts: Date.now() }));
+    const target = placeExpense(nn, srcCat);
     saveState(); closeModal(); renderAll();
     showToast(target === appState.selectedMonth ? 'Expense updated' : `Moved to ${formatMonthDisplay(target)}`);
   };
@@ -1324,7 +1329,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     mData.expenses = mData.expenses.filter(e => e.id !== expId);
     saveState();
     renderAll();
-    if (activeTabName() !== 'catdetail') openCategoryDetailModal(catId);
+    if (activeTabName() === 'budget') openCategoryDetailModal(catId);
     showToast('Expense removed');
   };
 
@@ -1679,7 +1684,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     saveState();
     closeModal();
     renderAll();
-    showToast('Udhaar updated!');
+    showToast('Loan updated!');
   };
 
   const _deleteUdhaarEntry = (id) => {
@@ -1960,10 +1965,10 @@ ${n.body}`;
     confirmAction('Delete category?', `"${escapeHtml(c ? c.name : '')}" and its ${n} expense entries will be deleted permanently.`, () => _deleteCategory(id));
   };
   const deleteFund = (id) => confirmAction('Delete fund?', 'This fund and its full history will be deleted.', () => _deleteFund(id));
-  const deleteUdhaarEntry = (id) => confirmAction('Delete record?', 'This udhaar record and its history will be deleted.', () => _deleteUdhaarEntry(id));
+  const deleteUdhaarEntry = (id) => confirmAction('Delete record?', 'This loan record and its history will be deleted.', () => _deleteUdhaarEntry(id));
   const deleteNote = (id) => confirmAction('Delete note?', 'This note will be deleted.', () => _deleteNote(id));
   const deleteUpcomingPlan = (id) => confirmAction('Delete plan?', 'This upcoming plan will be deleted.', () => _deleteUpcomingPlan(id));
-  const clearAllData = () => confirmAction('Clear ALL data?', 'Everything (expenses, funds, udhaar, notes) will be erased. Take a backup first if unsure.', () => { _clearAllData(); }, 'Yes, Clear All');
+  const clearAllData = () => confirmAction('Clear ALL data?', 'Everything (expenses, funds, loans, notes) will be erased. Take a backup first if unsure.', () => { _clearAllData(); }, 'Yes, Clear All');
   const resetToDemoData = () => confirmAction('Load demo data?', 'Your current data will be REPLACED with sample demo data.', () => { _resetToDemoData(); }, 'Yes, Replace');
 
   /* ---------- Charts (pure SVG) ---------- */
@@ -2069,7 +2074,7 @@ ${n.body}`;
   const resetPinWithCode = () => {
     const c = $v('rcCode').trim().toUpperCase(), n = $v('rcNew');
     if (hashPin('rc|' + c) !== appState.pinRecovery) { showToast('Wrong code'); return; }
-    if (!/^\d{4}$/.test(n)) { showToast('PIN 4 digit ka hona chahiye'); return; }
+    if (!/^\d{4}$/.test(n)) { showToast('PIN must be 4 digits'); return; }
     appState.pin = hashPin(n); const code = makeRecoveryCode(); appState.pinRecovery = hashPin('rc|' + code); saveState();
     document.getElementById('lockScreen').style.display = 'none'; renderPinStatus(); showRecoveryCode(code);
   };
@@ -2183,14 +2188,14 @@ ${n.body}`;
   };
   const delExtraIncome = (id) => { snap(); const mo = getCurrentMonthData(); mo.extraIncome = mo.extraIncome.filter(x => x.id !== id); saveState(); renderAll(); openExtraIncomeModal(); showUndo('Income deleted'); };
 
-  /* ---- Split (creates udhaar entries) ---- */
+  /* ---- Split (creates loan entries) ---- */
   const openSplitModal = () => openModal(head('👥 Split Expense') + `
     <div class="form-group"><label class="form-label">What for?</label><input id="spTitle" class="form-input" placeholder="e.g. Dinner, Trip petrol"></div>
     <div class="form-group"><label class="form-label">Total bill (₹)</label><input id="spTotal" type="number" inputmode="decimal" class="form-input"></div>
     <div class="form-group"><label class="form-label">Other people (comma se alag)</label><input id="spPeople" class="form-input" placeholder="Rahul, Amit"></div>
     <div class="form-group"><label class="form-label">Who paid?</label><input id="spPayer" class="form-input" placeholder="Leave empty if you paid, or type a name"></div>
     <div class="form-group"><label class="form-label">Add my share as an expense (category)</label><select id="spCat"><option value="">Do not add</option>${catOptions()}</select></div>
-    <p id="spPrev" style="font-size:.78rem;color:var(--text-secondary);margin-bottom:8px">Barabar hissa: sab ka total ÷ log. Udhaar tab mein entries ban jaayengi.</p>
+    <p id="spPrev" style="font-size:.78rem;color:var(--text-secondary);margin-bottom:8px">Barabar hissa: sab ka total ÷ log. Loans tab mein entries ban jaayengi.</p>
     <button class="btn-primary" style="justify-content:center;padding:12px" onclick="saveSplit()">Split</button>`);
   const saveSplit = () => {
     const total = Number($v('spTotal')), title = $v('spTitle').trim() || 'Split';
@@ -2209,7 +2214,7 @@ ${n.body}`;
   const openShoppingModal = () => {
     const l = appState.shopping || [];
     openModal(head('🛒 Shopping List') + `<div style="display:flex;gap:6px;margin-bottom:10px"><input id="shName" class="form-input" placeholder="Item"><input id="shPrice" type="number" inputmode="decimal" class="form-input" placeholder="₹" style="max-width:80px"><button class="btn-primary" onclick="addShop()">+</button></div>
-      <div style="max-height:34vh;overflow-y:auto">${l.map(x => `<div class="row-item"><label style="display:flex;gap:8px;align-items:center;flex:1"><input type="checkbox" ${x.done ? 'checked' : ''} onchange="toggleShop('${x.id}')"><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${escapeHtml(x.name)}</span></label><span>${x.price ? money(x.price) : ''} <button class="mini-icon-btn" onclick="delShop('${x.id}')">🗑️</button></span></div>`).join('') || '<div style="color:var(--text-muted);font-size:.82rem">List khali hai.</div>'}</div>
+      <div style="max-height:34vh;overflow-y:auto">${l.map(x => `<div class="row-item"><label style="display:flex;gap:8px;align-items:center;flex:1"><input type="checkbox" ${x.done ? 'checked' : ''} onchange="toggleShop('${x.id}')"><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${escapeHtml(x.name)}</span></label><span>${x.price ? money(x.price) : ''} <button class="mini-icon-btn" onclick="delShop('${x.id}')">🗑️</button></span></div>`).join('') || '<div style="color:var(--text-muted);font-size:.82rem">The list is empty.</div>'}</div>
       <div class="form-group" style="margin-top:10px"><label class="form-label">Ticked items ko expense banao</label><select id="shCat">${catOptions()}</select></div>
       <button class="btn-secondary" style="justify-content:center;padding:12px;width:100%" onclick="shopToExpense()">✓ Ticked → Expense (${money(l.filter(x => x.done).reduce((s, x) => s + Number(x.price || 0), 0))})</button>`);
   };
@@ -2237,8 +2242,8 @@ ${n.body}`;
       <div style="font-weight:800;font-size:.82rem;margin:14px 0 4px">Include</div>
       ${cb('rpSum', 'Summary')}${cb('rpCats', 'Category-wise budget')}
       <div style="font-size:.78rem;color:var(--text-secondary);margin-top:4px">Transactions</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:8px">${cb('rpTx_out', 'Expenses')}${cb('rpTx_inc', 'Income')}${cb('rpTx_fund', 'Funds')}${cb('rpTx_ud', 'Udhaar')}</div>
-      ${cb('rpFunds', 'Funds overview', false)}${cb('rpUd', 'Udhaar overview', false)}${cb('rpPlans', 'Upcoming plans', false)}${cb('rpNotes', 'Notes', false)}
+      <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:8px">${cb('rpTx_out', 'Expenses')}${cb('rpTx_inc', 'Income')}${cb('rpTx_fund', 'Funds')}${cb('rpTx_ud', 'Loans')}</div>
+      ${cb('rpFunds', 'Funds overview', false)}${cb('rpUd', 'Loans overview', false)}${cb('rpPlans', 'Upcoming plans', false)}${cb('rpNotes', 'Notes', false)}
       <button class="btn-primary" style="justify-content:center;padding:12px;width:100%;margin-top:12px" onclick="sharePDF()">Generate PDF</button>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px"><button class="btn-secondary" style="justify-content:center;padding:12px" onclick="shareReport()">Share text</button><button class="btn-secondary" style="justify-content:center;padding:12px" onclick="copyReport()">Copy text</button></div>`);
     rpSet(rpPeriod);
@@ -2286,7 +2291,7 @@ ${n.body}`;
     if (o.sum && extra) { sec('Extra income'); mo.extraIncome.forEach(x => row(`${x.date}   ${x.note}`, money(x.amount), '#059669')); }
 
     if (o.tx && o.tx.length) {
-      const rows = collectTxns(o.period).filter(r => o.tx.includes(r.k)), lab = { out: 'Expense', inc: 'Income', fund: 'Fund', ud: 'Udhaar' };
+      const rows = collectTxns(o.period).filter(r => o.tx.includes(r.k)), lab = { out: 'Expense', inc: 'Income', fund: 'Fund', ud: 'Loans' };
       sec(`Transactions · ${periodLabel(o.period)} (${rows.length})`);
       need(24); g.fillStyle = '#f1f5f9'; g.fillRect(32, y - 12, 531, 18); g.fillStyle = '#475569'; F('bold', 10); g.fillText('DATE', 38, y); g.fillText('TYPE', 108, y); g.fillText('DETAILS', 170, y); g.textAlign = 'right'; g.fillText('AMOUNT', 557, y); g.textAlign = 'left'; y += 14;
       let tin = 0, tout = 0;
@@ -2302,12 +2307,12 @@ ${n.body}`;
         (f.history || []).forEach(h => row(`${h.date}  ${h.type === 'add' ? '＋ Added' : '－ Withdrawn'}  ${h.note || ''}`, money(h.amount), h.type === 'add' ? '#059669' : '#dc2626', 'normal', 40, 360)); gap(); });
       if (!appState.funds.length) row('No funds', ''); }
 
-    if (o.ud) { sec('Udhaar (lent / borrowed)');
+    if (o.ud) { sec('Loans (lent / borrowed)');
       const pend = t => appState.udhaar.filter(u => u.type === t).reduce((s, u) => s + u.totalAmount - u.paidAmount, 0);
       row('Pending to receive (lent)', money(pend('lent')), '#059669', 'bold'); row('Pending to pay (borrowed)', money(pend('borrowed')), '#dc2626', 'bold'); gap();
       appState.udhaar.forEach(u => { row(`${u.person}  (${u.type === 'lent' ? 'Diya' : 'Liya'})  ·  ${u.date}`, `Pending ${money(u.totalAmount - u.paidAmount)} / ${money(u.totalAmount)}`, '#0f172a', 'bold'); if (u.notes) wrap(u.notes, 40, 520);
         (u.history || []).forEach(h => row(`${h.date}  ${h.action}${h.note ? ' – ' + h.note : ''}`, money(h.amount), '#475569', 'normal', 40, 360)); gap(); });
-      if (!appState.udhaar.length) row('No udhaar records', ''); }
+      if (!appState.udhaar.length) row('No loan records', ''); }
 
     if (o.notes) { sec('Notes'); (appState.notes || []).forEach(n => { row(n.title, n.date || '', '#0f172a', 'bold'); wrap(n.body, 40, 520); gap(); }); if (!(appState.notes || []).length) row('No notes', ''); }
 
@@ -2403,7 +2408,7 @@ ${n.body}`;
       <button class="btn-primary" style="justify-content:center;padding:12px" onclick="saveSalarySpend('${id}')">Save</button>`);
   };
   const saveSalarySpend = (id) => {
-    const amt = Number($v('ssAmt')), note = $v('ssNote').trim() || 'Kharch';
+    const amt = Number($v('ssAmt')), note = $v('ssNote').trim() || 'Spend';
     if (!amt || amt <= 0) { showToast('Enter a valid amount'); return; }
     const f = id ? findSalarySpend(id) : null;
     if (f) { f.s.amount = amt; f.s.note = note; }
@@ -2456,8 +2461,13 @@ ${n.body}`;
   };
 
   /* ---- [SETTINGS] about, animation, auto-backup ---- */
+  const setTextSize = (k) => { appState.textSize = k; saveState(); renderAll(); };
+  const getStorageInfo = () => { let b = 0; try { b = (localStorage.getItem(STORAGE_KEY) || '').length * 2; } catch (e) {} return { kb: Math.round(b / 1024), pct: Math.min(100, Math.round(b / 5242880 * 100)) }; };
   const renderAbout = () => {
     const v = document.getElementById('appVerLabel'); if (!v) return;
+    document.documentElement.style.fontSize = { sm: '90%', md: '100%', lg: '112%' }[appState.textSize || 'md'];
+    document.getElementById('textSizeBtns').innerHTML = [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']].map(([k, t]) => `<button class="btn-secondary" style="flex:1;justify-content:center;padding:9px;${(appState.textSize || 'md') === k ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="setTextSize('${k}')">${t}</button>`).join('');
+    const si = getStorageInfo(); document.getElementById('storageLine').textContent = `Storage: ${si.kb} KB used of about 5 MB (${si.pct}%)`;
     v.textContent = 'v' + APP_VERSION;
     document.getElementById('whatsNewList').innerHTML = WHATS_NEW.map(x => `<li>${escapeHtml(x)}</li>`).join('');
     document.getElementById('calHideBtn').textContent = appState.calHide === false ? '👁️ Calendar shows name and amount (hide)' : '🙈 Calendar hides name and amount (show)';
@@ -2524,12 +2534,40 @@ ${n.body}`;
     Object.keys(appState.months).forEach(ym => {
       const m = appState.months[ym];
       if (Number(m.income) > 0) rows.push({ k: 'inc', date: ym + '-01', title: 'Monthly income', sub: 'Salary', amt: Number(m.income), sign: 1 });
-      (m.extraIncome || []).forEach(x => rows.push({ k: 'inc', date: x.date || ym + '-01', title: x.note || 'Extra income', sub: 'Income', amt: Number(x.amount), sign: 1, del: x.id, tm: x.time || timeFromId(x.id) }));
-      (m.expenses || []).forEach(e => { const c = (m.categories || []).find(c => c.id === e.catId); rows.push({ k: 'out', date: e.date || ym + '-01', title: e.note || (c ? c.name : 'Kharch'), sub: c ? c.name : 'Kharch', amt: Number(e.amount), sign: -1, exp: e.id, cat: e.catId, tm: e.time || timeFromId(e.id) }); });
+      (m.extraIncome || []).forEach(x => rows.push({ k: 'inc', ei: x, ym, date: x.date || ym + '-01', title: x.note || 'Extra income', sub: 'Income', amt: Number(x.amount), sign: 1, del: x.id, tm: x.time || timeFromId(x.id) }));
+      (m.expenses || []).forEach(e => { const c = (m.categories || []).find(c => c.id === e.catId); rows.push({ k: 'out', ex: e, ym, date: e.date || ym + '-01', title: e.note || (c ? c.name : 'Kharch'), sub: c ? c.name : 'Kharch', amt: Number(e.amount), sign: -1, exp: e.id, cat: e.catId, tm: e.time || timeFromId(e.id) }); });
     });
-    (appState.funds || []).forEach(f => (f.history || []).forEach(h => { rows.push({ k: 'fund', date: h.date, title: f.name, sub: h.type === 'add' ? 'Added to fund' : 'Fund se nikala', amt: Number(h.amount), sign: h.type === 'add' ? 0 : 0, tag: h.type === 'add' ? '+' : '−', tm: h.time || timeFromId(h.id) }); }));
-    appState.udhaar.forEach(u => (u.history || []).forEach(h => { rows.push({ k: 'ud', date: h.date || '', title: u.person, sub: `${u.type === 'lent' ? 'Udhaar diya' : 'Udhaar liya'} · ${h.action || ''}`, amt: Number(h.amount), sign: 0, tm: h.time || timeFromId(h.id) }); }));
+    (appState.funds || []).forEach(f => (f.history || []).forEach(h => { rows.push({ k: 'fund', fid: f.id, hid: h.id, ftype: h.type, note: h.note, date: h.date, title: f.name, sub: h.type === 'add' ? 'Added to fund' : 'Fund se nikala', amt: Number(h.amount), sign: h.type === 'add' ? 0 : 0, tag: h.type === 'add' ? '+' : '−', tm: h.time || timeFromId(h.id) }); }));
+    appState.udhaar.forEach(u => (u.history || []).forEach(h => { rows.push({ k: 'ud', uid: u.id, hid: h.id, utype: u.type, act: h.action, note: h.note, date: h.date || '', title: u.person, sub: `${u.type === 'lent' ? 'Loans diya' : 'Loans liya'} · ${h.action || ''}`, amt: Number(h.amount), sign: 0, tm: h.time || timeFromId(h.id) }); }));
     return rows.filter(r => inPeriod(r.date, period)).sort((x, y) => (y.date || '').localeCompare(x.date || ''));
+  };
+
+  /* ==========================================================================
+     [TXN DETAILS] kisi bhi transaction par tap -> details + history
+     ========================================================================== */
+  let _txView = [];
+  const tsFromId = (id) => { const m = String(id || '').match(/_(\d{13})/); return m ? Number(m[1]) : 0; };
+  const findExpense = (id) => { for (const ym of Object.keys(appState.months)) { const e = (appState.months[ym].expenses || []).find(x => x.id === id); if (e) return { e, ym, cat: appState.months[ym].categories.find(c => c.id === e.catId) }; } return null; };
+  const shRow = (l, v) => v ? `<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--border-color);font-size:.86rem"><span style="color:var(--text-secondary)">${l}</span><strong style="text-align:right">${v}</strong></div>` : '';
+  const shHist = (items) => `<div style="font-weight:800;font-size:.84rem;margin:16px 0 4px">History</div>` + items.sort((p, q) => q.ts - p.ts).map(x => `<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-color);font-size:.8rem"><span>${escapeHtml(x.text)}</span><span style="color:var(--text-muted);white-space:nowrap">${x.ts ? fmtTs(x.ts) : ''}</span></div>`).join('');
+  const shHead = (sign, amt, tag, title) => `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><div style="font-weight:800;font-size:1.02rem;min-width:0;overflow:hidden;text-overflow:ellipsis">${escapeHtml(title)}</div><span class="fund-tag">${tag}</span></div><div style="font-size:2rem;font-weight:800;margin-bottom:6px">${sign}${formatINR(amt)}</div>`;
+  const shBtns = (list) => `<div style="display:flex;gap:10px;margin-top:16px">${list.map(([t, fn, cls]) => `<button class="${cls || 'btn-secondary'}" style="flex:1;justify-content:center;padding:12px" onclick="closeModal();setTimeout(()=>{${fn}},140)">${t}</button>`).join('')}</div>`;
+  const goExpense = (id, del) => { const f = findExpense(id); if (!f) return; if (f.ym !== appState.selectedMonth) { appState.selectedMonth = f.ym; saveState(); renderAll(); } del ? deleteExpenseEntry(id, f.e.catId) : openEditExpenseModal(id, f.e.catId); };
+  const openExpenseSheet = (id) => {
+    const f = findExpense(id); if (!f) return; const e = f.e, created = tsFromId(e.id);
+    openModal(shHead('−', e.amount, 'Expense', e.note || 'Expense') + shRow('Category', f.cat ? escapeHtml(f.cat.name) : '') + shRow('Payment', escapeHtml(e.pay || '')) + shRow('Date', e.date || '') + shRow('Time', e.time || '') + shRow('Notes', e.desc ? escapeHtml(e.desc) : '')
+      + shHist((e.history || []).concat(created ? [{ text: 'Created', ts: created }] : [])) + shBtns([['Edit', `goExpense('${e.id}',false)`], ['Delete', `goExpense('${e.id}',true)`]]));
+  };
+  const openTxnSheet = (i) => {
+    const r = _txView[i]; if (!r) return;
+    if (r.k === 'out' && r.ex) return openExpenseSheet(r.ex.id);
+    if (r.k === 'inc') { const x = r.ei, ts = x ? tsFromId(x.id) : 0;
+      return openModal(shHead('+', r.amt, 'Income', r.title) + shRow('Date', r.date || '') + shRow('Note', x && x.note ? escapeHtml(x.note) : '') + (x ? '' : '<p style="font-size:.8rem;color:var(--text-secondary);margin-top:8px">This is your monthly income. Edit it from the dashboard.</p>') + (ts ? shHist([{ text: 'Created', ts }]) : '')
+        + (x && r.ym === appState.selectedMonth ? shBtns([['Delete', `askConfirm('Delete this income?','delExtraIncome(\\'${x.id}\\')')`]]) : '')); }
+    if (r.k === 'fund') { const ts = tsFromId(r.hid);
+      return openModal(shHead(r.ftype === 'add' ? '+' : '−', r.amt, 'Fund', r.title) + shRow('Type', r.ftype === 'add' ? 'Added to fund' : 'Withdrawn') + shRow('Date', r.date || '') + shRow('Note', r.note ? escapeHtml(r.note) : '') + (ts ? shHist([{ text: 'Created', ts }]) : '') + shBtns([['Open fund', `openFundSheet('${r.fid}')`, 'btn-primary']])); }
+    const ts = tsFromId(r.hid);
+    openModal(shHead('', r.amt, 'Loan', r.title) + shRow('Type', r.utype === 'lent' ? 'Lent (to receive)' : 'Borrowed (to pay)') + shRow('Entry', escapeHtml(r.act || '')) + shRow('Date', r.date || '') + shRow('Note', r.note ? escapeHtml(r.note) : '') + (ts ? shHist([{ text: 'Created', ts }]) : '') + shBtns([['Open loans', "switchMainTab('udhaar')", 'btn-primary']]));
   };
   const renderTxns = () => {
     const el = document.getElementById('txList'); if (!el) return;
@@ -2537,15 +2575,15 @@ ${n.body}`;
     document.getElementById('txIn').textContent = money(all.filter(r => r.k === 'inc').reduce((t, r) => t + r.amt, 0));
     document.getElementById('txOut').textContent = money(all.filter(r => r.k === 'out').reduce((t, r) => t + r.amt, 0));
     const chip = (v, t) => `<button class="btn-secondary" style="padding:6px 12px;font-size:.76rem;white-space:nowrap;${txType === v ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="txType='${v}';renderTxns()">${t}</button>`;
-    document.getElementById('txChips').innerHTML = chip('all', 'Sab') + chip('out', 'Kharch') + chip('inc', 'Income') + chip('fund', 'Fund') + chip('ud', 'Udhaar') ; document.getElementById('txPeriods').innerHTML = PERIODS.map(([v, t]) => `<button class="btn-secondary" style="padding:6px 12px;font-size:.76rem;white-space:nowrap;${txPeriod === v ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="txPeriod='${v}';renderTxns()">${t}</button>`).join('');
+    document.getElementById('txChips').innerHTML = chip('all', 'Sab') + chip('out', 'Kharch') + chip('inc', 'Income') + chip('fund', 'Fund') + chip('ud', 'Loans') ; document.getElementById('txPeriods').innerHTML = PERIODS.map(([v, t]) => `<button class="btn-secondary" style="padding:6px 12px;font-size:.76rem;white-space:nowrap;${txPeriod === v ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="txPeriod='${v}';renderTxns()">${t}</button>`).join('');
     const q = txQ.trim().toLowerCase();
     const rows = all.filter(r => (txType === 'all' || r.k === txType) && (!q || `${r.title} ${r.sub} ${r.amt}`.toLowerCase().includes(q)));
     if (!rows.length) { el.innerHTML = '<div class="empty-state">No transactions found.</div>'; return; }
     const col = { out: 'var(--danger)', inc: 'var(--success)', fund: 'var(--accent)', ud: 'var(--warning)' };
-    el.innerHTML = rows.map(r => {
+    el.innerHTML = rows.map((r, ri) => { _txView = rows;
       const act = r.exp ? `openEditExpenseModal('${r.exp}','${r.cat}')` : r.del ? `askConfirm('Delete this income?','delExtraIncome(\'${r.del}\')')` : r.k === 'fund' ? "switchMainTab('funds')" : r.k === 'ud' ? "switchMainTab('udhaar')" : '';
       const sign = r.k === 'out' ? '−' : r.k === 'inc' ? '+' : (r.tag || '');
-      return `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:12px;cursor:pointer" ${act ? `onclick="${act}"` : ''}>
+      return `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="openTxnSheet(${ri})">
         <div style="width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:${col[r.k]}"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">${TX_ICON[r.k]}</svg></div>
         <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.title)}</div><div style="font-size:.72rem;color:var(--text-muted)">${escapeHtml(r.sub)} · ${r.date}${r.tm ? ' · ' + fmt12(r.tm) : ''}</div></div>
         <div style="font-weight:800;color:${col[r.k]}">${sign}${money(r.amt)}</div></div>`;
@@ -2567,7 +2605,7 @@ ${n.body}`;
     if (!od.length && !td.length && !up.length && !udo.length && !udt.length) return;
     const udBlk = (ttl, col, arr) => arr.length ? `<div style="margin-bottom:10px"><div style="font-weight:800;color:${col};font-size:.85rem">${ttl}</div>${arr.map(u => `<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:4px 0"><span>${escapeHtml(u.person)} <span style="color:var(--text-muted)">(${u.type === 'lent' ? 'lene' : 'dene'}, ${u.due})</span></span><strong>${money(Number(u.totalAmount) - Number(u.paidAmount))}</strong></div>`).join('')}</div>` : '';
     const blk = (ttl, col, arr) => arr.length ? `<div style="margin-bottom:10px"><div style="font-weight:800;color:${col};font-size:.85rem">${ttl}</div>${arr.map(p => `<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:4px 0"><span>${escapeHtml(p.title)} <span style="color:var(--text-muted)">(${p.date})</span></span><strong>${money(p.amount)}</strong></div>`).join('')}</div>` : '';
-    openModal(head('🔔 Reminders') + blk('⚠️ Overdue', 'var(--danger)', od) + blk('📌 Due today', 'var(--warning)', td) + blk('⏳ 3 din ke andar', 'var(--accent)', up) + udBlk('💸 Udhaar overdue', 'var(--danger)', udo) + udBlk('💸 Udhaar due soon', 'var(--warning)', udt) + `<button class="btn-primary" style="justify-content:center;padding:12px" onclick="closeModal();switchMainTab('plans')">Plans dekho</button>`);
+    openModal(head('🔔 Reminders') + blk('⚠️ Overdue', 'var(--danger)', od) + blk('📌 Due today', 'var(--warning)', td) + blk('⏳ 3 din ke andar', 'var(--accent)', up) + udBlk('💸 Loans overdue', 'var(--danger)', udo) + udBlk('💸 Loans due soon', 'var(--warning)', udt) + `<button class="btn-primary" style="justify-content:center;padding:12px" onclick="closeModal();switchMainTab('plans')">Plans dekho</button>`);
   };
   const addPlanToCalendar = (id) => {
     const p = allPlans().find(x => x.id === id); if (!p || !p.date) { showToast('This plan has no date'); return; }
@@ -2637,6 +2675,7 @@ ${n.body}`;
     if (mt.netActualSaving < 0) a.push({ key: 'over:' + mk, ic: 'warn', title: 'Overspent this month', detail: 'Spending is more than income', amt: -mt.netActualSaving, go: 'budget' });
     const bd = appState.lastBackup ? -daysFromToday(appState.lastBackup) : null;
     if (bd === null || bd > 14) a.push({ key: 'backup', ic: 'save', title: 'Backup', detail: bd === null ? 'No backup taken yet' : `Last backup ${bd} days ago`, amt: 0, go: 'settings' });
+    const sInfo = getStorageInfo(); if (sInfo.pct >= 70) a.push({ key: 'storage', ic: 'warn', title: 'Storage almost full', detail: `Using ${sInfo.pct}% of local storage. Take a backup.`, amt: 0, go: 'settings' });
     return a.filter(x => !(appState.alertsDismissed || []).includes(x.key));
   };
   const dismissAlert = (k) => { (appState.alertsDismissed = appState.alertsDismissed || []).push(k); saveState(); renderBell(); openAlerts(); };
@@ -2671,11 +2710,19 @@ ${n.body}`;
 
   /* ---- [INSIGHTS] graphs ---- */
   const openInsights = () => {
-    const m = getCurrentMonthData(), keys = Object.keys(appState.months).sort().slice(-6);
-    const rows = (m.categories || []).map(c => ({ n: c.name, v: m.expenses.filter(e => e.catId === c.id).reduce((x, e) => x + Number(e.amount), 0), l: Number(c.limit) || 0 })).filter(r => r.v > 0).sort((a, b) => b.v - a.v);
-    const mx = Math.max(1, ...rows.map(r => Math.max(r.v, r.l))), tot = keys.map(k => getMonthMetrics(k).totalExpenses), tm = Math.max(1, ...tot);
-    openModal(head('Insights') + `<div style="font-weight:800;font-size:.85rem;margin-bottom:8px">This month by category</div>` + (rows.length ? rows.map(r => `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:.78rem"><span>${escapeHtml(r.n)}</span><span>${formatINR(r.v)}${r.l ? ' / ' + formatINR(r.l) : ''}</span></div><div style="height:8px;border-radius:8px;background:var(--bg-card-alt);overflow:hidden"><div style="height:100%;width:${Math.round(r.v / mx * 100)}%;background:var(--accent)"></div></div></div>`).join('') : '<p style="font-size:.82rem;color:var(--text-secondary)">No expenses yet.</p>') + `
-      <div style="font-weight:800;font-size:.85rem;margin:14px 0 8px">Spending trend</div><div style="display:flex;align-items:flex-end;gap:8px;height:110px">${keys.map((k, i) => `<div style="flex:1;text-align:center;font-size:.64rem;color:var(--text-secondary)"><div style="height:${Math.max(3, Math.round(tot[i] / tm * 80))}px;border-radius:6px 6px 0 0;background:var(--grad);margin-bottom:4px"></div>${k.slice(5)}/${k.slice(2, 4)}</div>`).join('')}</div>`);
+    const m = getCurrentMonthData(), keys = Object.keys(appState.months).sort().slice(-6), mets = keys.map(k => getMonthMetrics(k));
+    const sp = (mo, id) => mo.expenses.filter(e => e.catId === id).reduce((x, e) => x + Number(e.amount), 0);
+    const rows = (m.categories || []).map(c => ({ n: c.name, v: sp(m, c.id), l: Number(c.limit) || 0 })).filter(r => r.v > 0).sort((p, q) => q.v - p.v);
+    const mx = Math.max(1, ...rows.map(r => Math.max(r.v, r.l))), tm = Math.max(1, ...mets.map(x => Math.max(x.income, x.totalExpenses))), pm = appState.months[prevMonthKey()];
+    const cmp = pm ? (m.categories || []).map(c => { const pc = pm.categories.find(x => x.name === c.name), cur = sp(m, c.id), prev = pc ? sp(pm, pc.id) : 0; return { n: c.name, d: cur - prev, cur, prev }; }).filter(r => r.cur || r.prev).sort((p, q) => Math.abs(q.d) - Math.abs(p.d)).slice(0, 6) : [];
+    const pay = {}; m.expenses.forEach(e => { const k = e.pay || 'Not set'; pay[k] = (pay[k] || 0) + Number(e.amount); }); const pays = Object.entries(pay).sort((p, q) => q[1] - p[1]), pmx = Math.max(1, ...pays.map(x => x[1]));
+    const bar = (n, v, mxv, extra = '') => `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:.78rem"><span>${escapeHtml(n)}</span><span>${formatINR(v)}${extra}</span></div><div style="height:8px;border-radius:8px;background:var(--bg-card-alt);overflow:hidden"><div style="height:100%;width:${Math.round(v / mxv * 100)}%;background:var(--accent)"></div></div></div>`;
+    const H = (t) => `<div style="font-weight:800;font-size:.85rem;margin:16px 0 8px">${t}</div>`;
+    openModal(head('Insights') + `<div style="font-weight:800;font-size:.85rem;margin-bottom:8px">This month by category</div>` + (rows.length ? rows.map(r => bar(r.n, r.v, mx, r.l ? ' / ' + formatINR(r.l) : '')).join('') : '<p style="font-size:.82rem;color:var(--text-secondary)">No expenses yet.</p>')
+      + H('Income vs expense') + `<div style="display:flex;align-items:flex-end;gap:8px;height:120px">${keys.map((k, i) => `<div style="flex:1;text-align:center;font-size:.64rem;color:var(--text-secondary)"><div style="display:flex;align-items:flex-end;justify-content:center;gap:3px;height:96px"><div style="width:42%;height:${Math.max(3, Math.round(mets[i].income / tm * 92))}px;background:var(--text-muted);border-radius:4px 4px 0 0;opacity:.55"></div><div style="width:42%;height:${Math.max(3, Math.round(mets[i].totalExpenses / tm * 92))}px;background:var(--accent);border-radius:4px 4px 0 0"></div></div>${k.slice(5)}/${k.slice(2, 4)}</div>`).join('')}</div><div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">Grey: income · Colored: expense</div>`
+      + H('Compared with last month') + (cmp.length ? cmp.map(r => `<div style="display:flex;justify-content:space-between;font-size:.82rem;padding:5px 0;border-bottom:1px solid var(--border-color)"><span>${escapeHtml(r.n)}</span><strong>${r.d === 0 ? 'Same' : formatINR(Math.abs(r.d)) + (r.d > 0 ? ' more' : ' less')}</strong></div>`).join('') : '<p style="font-size:.82rem;color:var(--text-secondary)">No data for the previous month.</p>')
+      + H('By payment method') + (pays.length ? pays.map(x => bar(x[0], x[1], pmx)).join('') : '<p style="font-size:.82rem;color:var(--text-secondary)">No expenses yet.</p>')
+      + H('Spending trend') + `<div style="display:flex;align-items:flex-end;gap:8px;height:110px">${keys.map((k, i) => `<div style="flex:1;text-align:center;font-size:.64rem;color:var(--text-secondary)"><div style="height:${Math.max(3, Math.round(mets[i].totalExpenses / tm * 80))}px;border-radius:6px 6px 0 0;background:var(--grad);margin-bottom:4px"></div>${k.slice(5)}/${k.slice(2, 4)}</div>`).join('')}</div>`);
   };
 
   /* ---- [SETUP] first launch ---- */
@@ -2713,7 +2760,7 @@ ${n.body}`;
         <div style="display:flex;justify-content:space-between;font-size:.64rem;color:var(--text-muted);margin-top:4px"><span>1</span><span>${days}</span></div></div>
       <div style="display:flex;gap:10px"><button class="btn-primary" style="flex:1;justify-content:center;padding:12px" onclick="openQuickExpenseModal('${cat.id}')">Add expense</button><button class="btn-secondary" style="flex:1;justify-content:center;padding:12px" onclick="openCategoryModal('${cat.id}')">Edit category</button></div>
       ${Object.keys(groups).length ? Object.keys(groups).map(dt => { const g = groups[dt], tot = g.reduce((s, e) => s + Number(e.amount), 0), lab = /^\d{4}-/.test(dt) ? new Date(dt + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) : dt;
-        return `<div><div style="display:flex;justify-content:space-between;font-size:.76rem;font-weight:700;color:var(--text-secondary);margin:6px 2px"><span>${lab}</span><span>${formatINR(tot)}</span></div>${g.map(e => `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:6px"><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(e.note || 'Expense')}</div></div><strong>${formatINR(e.amount)}</strong><button class="btn-secondary" style="padding:5px 9px;font-size:.72rem" onclick="openEditExpenseModal('${e.id}','${cat.id}')">Edit</button><button class="btn-secondary" style="padding:5px 9px;font-size:.72rem" onclick="deleteExpenseEntry('${e.id}','${cat.id}')">Delete</button></div>`).join('')}</div>`; }).join('') : '<div class="empty-state">No expenses in this category yet.</div>'}`;
+        return `<div><div style="display:flex;justify-content:space-between;font-size:.76rem;font-weight:700;color:var(--text-secondary);margin:6px 2px"><span>${lab}</span><span>${formatINR(tot)}</span></div>${g.map(e => `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:6px"><div style="flex:1;min-width:0;cursor:pointer" onclick="openExpenseSheet('${e.id}')"><div style="font-weight:700;font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(e.note || 'Expense')}</div>${e.desc ? `<div style="font-size:.72rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(e.desc)}</div>` : ''}</div><strong>${formatINR(e.amount)}</strong><button class="btn-secondary" style="padding:5px 9px;font-size:.72rem" onclick="openEditExpenseModal('${e.id}','${cat.id}')">Edit</button><button class="btn-secondary" style="padding:5px 9px;font-size:.72rem" onclick="deleteExpenseEntry('${e.id}','${cat.id}')">Delete</button></div>`).join('')}</div>`; }).join('') : '<div class="empty-state">No expenses in this category yet.</div>'}`;
   };
 
   /* ==========================================================================
@@ -2740,7 +2787,7 @@ ${n.body}`;
   const hideMenuNow = () => document.getElementById('sideRoot').classList.remove('open');
   const closeMenu = () => { hideMenuNow(); if (sidePushed) { sidePushed = false; setTimeout(() => { ignorePop++; history.back(); }, 60); } };
   const openAbout = () => openModal(head('About') + `<div style="text-align:center;padding:6px 0 4px"><div class="brand-logo" style="width:64px;height:64px;font-size:1.9rem;margin:0 auto 10px">₹</div><div style="font-weight:800;font-size:1.15rem">SmartBudget</div><div style="font-size:.8rem;color:var(--text-secondary)">Version ${APP_VERSION}</div></div>
-    <p style="font-size:.86rem;line-height:1.55;margin:12px 0">A simple personal money manager: monthly budget, category limits, savings funds, upcoming plans, udhaar (lent and borrowed), notes and PDF reports.</p>
+    <p style="font-size:.86rem;line-height:1.55;margin:12px 0">A simple personal money manager: monthly budget, category limits, savings funds, upcoming plans, loans (lent and borrowed), notes and PDF reports.</p>
     <div style="font-size:.84rem;line-height:1.6;padding:12px;border-radius:14px;background:var(--bg-card-alt)"><strong>Your data stays on this phone.</strong> Nothing is uploaded to any server. It works offline. Take a backup from Settings regularly, because clearing browser data removes the app data.</div>`);
 
   /* ---- [BACK BUTTON] ---- */

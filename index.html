@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#6366f1" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="app-icon-192.png" />
-  <title>SmartBudget - Personal Finance & Udhaar Manager</title>
-  <link rel="stylesheet" href="style.css?v=6.5" />
+  <title>SmartBudget - Personal Finance & Loans Manager</title>
+  <link rel="stylesheet" href="style.css?v=6.6" />
 </head>
 <body>
   <div id="splash"><div class="sp-in"><svg class="sp-logo" viewBox="0 0 100 100" width="132" height="132"><defs><linearGradient id="spg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c6cff"/><stop offset=".55" stop-color="#b266ff"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs><circle cx="50" cy="50" r="48" fill="url(#spg)"/><text x="50" y="68" text-anchor="middle" font-size="56" font-weight="800" fill="#fff" font-family="sans-serif">₹</text></svg><div class="sp-name">SmartBudget</div><div class="sp-bar"><i></i></div></div></div>
@@ -59,7 +59,7 @@
 
         <div class="hero-top">
           <div class="income-box">
-            <div class="label-xs">Monthly Income (सैलरी)</div>
+            <div class="label-xs">Monthly Income</div>
             <div class="income-value-row">
               <span class="income-amount" id="displayIncome">₹60,000</span>
               <button class="icon-pill-btn" onclick="openIncomeModal()">
@@ -87,7 +87,7 @@
 
         <div class="breakdown-grid">
           <div class="stat-mini">
-            <div class="stat-mini-label"><span class="dot" style="background:var(--danger);"></span>Total Spent (खर्च)</div>
+            <div class="stat-mini-label"><span class="dot" style="background:var(--danger);"></span>Total Spent</div>
             <div class="stat-mini-val" id="statExpenses">₹0</div>
             <div class="stat-mini-sub">Categories + Marked Plans</div>
           </div>
@@ -97,7 +97,7 @@
             <div class="stat-mini-sub" id="statFundBreakdown">Funds: ₹0 • Salary: ₹0</div>
           </div>
           <div class="stat-mini">
-            <div class="stat-mini-label"><span class="dot" style="background:var(--warning);"></span>Unspent Cash (बचा कैश)</div>
+            <div class="stat-mini-label"><span class="dot" style="background:var(--warning);"></span>Unspent Cash</div>
             <div class="stat-mini-val" id="statCashLeft">₹0</div>
             <div class="stat-mini-sub">Income − Spent − Saved</div>
           </div>
@@ -141,7 +141,7 @@
           <div class="fund-title-group">
             <div class="fund-emoji">💵</div>
             <div>
-              <div class="label-xs" style="color:var(--success);">Monthly Salary Savings (अलग बचत)</div>
+              <div class="label-xs" style="color:var(--success);">Monthly Salary Savings</div>
               <div style="font-size:1.35rem; font-weight:800; color:var(--success);" id="displaySalarySavings">₹0</div>
               <div style="font-size:0.74rem; color:var(--text-secondary); margin-top:2px;">
                 Counts toward Saved in Funds & Salary (Not an expense)
@@ -158,7 +158,7 @@
       </div>
 
       <div class="card hero-card">
-        <div class="label-xs">Total Cumulative Funds (कुल जमा फंड)</div>
+        <div class="label-xs">Total Cumulative Funds</div>
         <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:4px;">
           <div>
             <div class="income-amount" style="color:var(--success);" id="totalAllFunds">₹0</div>
@@ -323,14 +323,14 @@
     <section class="tab-pane" id="tab-settings">
       <div class="page-title" style="display:flex;align-items:center;gap:10px"><button class="menu-btn" onclick="goBack()" aria-label="Back">←</button>Settings</div>
       <div class="card" style="display:flex; flex-direction:column; gap:12px;">
-        <h2 class="section-title">Backup & Restore (ऑफलाइन डेटा)</h2>
+        <h2 class="section-title">Backup & Restore</h2>
         <div id="lastBackupInfo" style="font-size:0.78rem; color:var(--text-secondary);"></div>
         <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.45;">
           Your data is saved 100% offline inside your phone's local storage. Choose a custom file name & folder path to save your backup safely.
         </p>
 
         <div class="form-group">
-          <label class="form-label">Backup File Name (फ़ाइल का नाम)</label>
+          <label class="form-label">Backup File Name</label>
           <div style="display:flex; align-items:center; gap:6px;">
             <input type="text" id="backupCustomFileName" class="form-input" placeholder="e.g. SmartBudget_Backup" />
             <span style="font-size:0.82rem; font-weight:700; color:var(--text-muted);">.json</span>
@@ -338,7 +338,7 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Save Folder / Path (फ़ोल्डर चुनें)</label>
+          <label class="form-label">Save Folder / Path</label>
           <div style="display:flex; gap:8px; align-items:center;">
             <input type="text" id="backupFolderDisplay" class="form-input" readonly value="Ask / Choose folder when saving" style="font-size:0.8rem; color:var(--text-secondary);" />
             <button type="button" class="btn-secondary" style="padding:11px 12px;" onclick="selectBackupFolder()">📁 Select Folder</button>
@@ -383,7 +383,13 @@
         <button class="btn-secondary" style="justify-content:center;" onclick="toggleDueAlert()" id="dueAlertBtn"></button>
       </div>
       <div class="card" style="display:flex; flex-direction:column; gap:10px;">
-        <h3 class="section-title">App ke baare mein</h3>
+        <h3 class="section-title">Display &amp; storage</h3>
+        <div style="font-size:.78rem;color:var(--text-secondary)">Text size</div>
+        <div id="textSizeBtns" style="display:flex;gap:8px"></div>
+        <div id="storageLine" style="font-size:.78rem;color:var(--text-secondary)"></div>
+      </div>
+      <div class="card" style="display:flex; flex-direction:column; gap:10px;">
+        <h3 class="section-title">About the app</h3>
         <div style="font-size:.82rem;color:var(--text-secondary)">SmartBudget <strong id="appVerLabel"></strong></div>
         <div style="font-weight:800;font-size:.8rem">What's new in this version</div>
         <ul class="whatsnew" id="whatsNewList"></ul>
@@ -417,7 +423,7 @@
     </button>
     <button class="nav-item" data-tab="udhaar" onclick="switchMainTab('udhaar')">
       <svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      <span>Udhaar</span>
+      <span>Loans</span>
     </button>
     <button class="nav-item" data-tab="txns" onclick="switchMainTab('txns')">
       <svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>
@@ -447,6 +453,6 @@
   </div>
 </div>
 
-<script src="app.js?v=6.5"></script>
+<script src="app.js?v=6.6"></script>
 </body>
 </html>
