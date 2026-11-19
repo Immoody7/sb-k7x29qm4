@@ -7,7 +7,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="app-icon-192.png" />
   <title>SmartBudget - Personal Finance & Loans Manager</title>
-  <link rel="stylesheet" href="style.css?v=6.8" />
+  <link rel="stylesheet" href="style.css?v=6.9" />
 </head>
 <body>
   <div id="splash"><div class="sp-in"><svg class="sp-logo" viewBox="0 0 100 100" width="132" height="132"><defs><linearGradient id="spg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c6cff"/><stop offset=".55" stop-color="#b266ff"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs><circle cx="50" cy="50" r="48" fill="url(#spg)"/><text x="50" y="68" text-anchor="middle" font-size="56" font-weight="800" fill="#fff" font-family="sans-serif">₹</text></svg><div class="sp-name">SmartBudget</div><div class="sp-bar"><i></i></div></div></div>
@@ -208,12 +208,11 @@
       <div class="card" style="padding:12px 14px">
         <div style="display:flex;justify-content:space-between;gap:10px">
           <div><div class="label-xs" style="color:var(--success)">Income</div><div id="txIn" style="font-weight:800;font-size:1.05rem"></div></div>
-          <div style="text-align:right"><div class="label-xs" style="color:var(--danger)">Kharch</div><div id="txOut" style="font-weight:800;font-size:1.05rem"></div></div>
+          <div style="text-align:right"><div class="label-xs" style="color:var(--danger)">Spent</div><div id="txOut" style="font-weight:800;font-size:1.05rem"></div></div>
         </div>
       </div>
-      <input id="txSearch" class="form-input" placeholder="Search (naam, note, amount)" oninput="txQ=this.value;renderTxns()">
-      <div id="txPeriods" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px"></div>
-      <div id="txChips" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px"></div>
+      <div style="display:flex;gap:8px"><input id="txSearch" class="form-input" style="flex:1" placeholder="Search by title, note or amount" oninput="txQ=this.value;renderTxns()"><button class="btn-secondary" id="txFilterBtn" onclick="openTxFilter()" style="padding:0 16px;justify-content:center;white-space:nowrap">Filter</button></div>
+      <div id="txActive" style="display:flex;gap:6px;flex-wrap:wrap"></div>
       <div id="txList" style="display:flex;flex-direction:column;gap:8px"></div>
     </section>
 
@@ -458,6 +457,6 @@
   </div>
 </div>
 
-<script src="app.js?v=6.8"></script>
+<script src="app.js?v=6.9"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'smart_budget_india_v2';
-  const APP_VERSION = '6.8';
-  const WHATS_NEW = ['Backup reminder: choose 7, 14, 30 days or Off in Settings', 'Report: Download CSV for the chosen period and transaction types', 'Home screen shortcuts: long-press the app icon for Add expense and Transactions'];
+  const APP_VERSION = '6.9';
+  const WHATS_NEW = ['Back button: from a note it now returns to the Notes list', 'Transactions are grouped by day with daily totals', 'Transactions: one Filter button with Period (including a custom range), Type, Category and Payment'];
 
   const formatINR = (num) => {
     const val = Math.round(Number(num) || 0);
@@ -2501,10 +2501,11 @@ ${n.body}`;
      [TRANSACTIONS] sab kuch ek list mein
      ========================================================================== */
   let txQ = '', txType = 'all', txPeriod = 'month', rpPeriod = 'month';
+  let txFilter = { period: 'month', from: '', to: '', types: [], cats: [], pays: [] }, _tf = null;
   const pad2 = (n) => String(n).padStart(2, '0'), ymdOf = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   const PERIODS = [['today', 'Today'], ['yesterday', 'Yesterday'], ['7d', 'Last 7 days'], ['month', 'This month'], ['lastmonth', 'Last month'], ['all', 'All time']];
   const prevMonthKey = () => { const [y, m] = appState.selectedMonth.split('-').map(Number); return ymdOf(new Date(y, m - 2, 1)).slice(0, 7); };
-  const periodLabel = (p) => p === 'month' ? formatMonthDisplay(appState.selectedMonth) : p === 'lastmonth' ? formatMonthDisplay(prevMonthKey()) : ((PERIODS.find(x => x[0] === p) || [])[1] || '');
+  const periodLabel = (p) => p === 'custom' ? `${txFilter.from || '...'} to ${txFilter.to || 'today'}` : p === 'month' ? formatMonthDisplay(appState.selectedMonth) : p === 'lastmonth' ? formatMonthDisplay(prevMonthKey()) : ((PERIODS.find(x => x[0] === p) || [])[1] || '');
   const inPeriod = (date, p) => {
     if (p === 'all') return true; if (!date) return false; const t = todayStr(), n = new Date();
     if (p === 'today') return date === t;
@@ -2512,13 +2513,14 @@ ${n.body}`;
     if (p === '7d') { n.setDate(n.getDate() - 6); return date >= ymdOf(n) && date <= t; }
     if (p === 'month') return date.slice(0, 7) === appState.selectedMonth;
     if (p === 'lastmonth') return date.slice(0, 7) === prevMonthKey();
+    if (p === 'custom') return (!txFilter.from || date >= txFilter.from) && (!txFilter.to || date <= txFilter.to);
     return true;
   };
   const TX_ICON = {
     out: '<path d="M7 17 17 7M8 7h9v9"/>', inc: '<path d="M17 7 7 17M16 17H7V8"/>',
     fund: '<path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>', ud: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>'
   };
-  const collectTxns = (period = txPeriod) => {
+  const collectTxns = (period = txFilter.period) => {
     const rows = [], cur = appState.selectedMonth;
     Object.keys(appState.months).forEach(ym => {
       const m = appState.months[ym];
@@ -2558,25 +2560,44 @@ ${n.body}`;
     const ts = tsFromId(r.hid);
     openModal(shHead('', r.amt, 'Loan', r.title) + shRow('Type', r.utype === 'lent' ? 'Lent (to receive)' : 'Borrowed (to pay)') + shRow('Entry', escapeHtml(r.act || '')) + shRow('Date', r.date || '') + shRow('Note', r.note ? escapeHtml(r.note) : '') + (ts ? shHist([{ text: 'Created', ts }]) : '') + shBtns([['Open loans', "switchMainTab('udhaar')", 'btn-primary']]));
   };
+  const TX_PERIODS = PERIODS.concat([['custom', 'Custom range']]);
+  const txCount = () => (txFilter.period !== 'month' ? 1 : 0) + txFilter.types.length + txFilter.cats.length + txFilter.pays.length;
+  const txClear = (kind, val) => { if (kind === 'period') { txFilter.period = 'month'; txFilter.from = ''; txFilter.to = ''; } else if (kind === 'all') txFilter = { period: 'month', from: '', to: '', types: [], cats: [], pays: [] }; else txFilter[kind] = txFilter[kind].filter(x => x !== val); renderTxns(); };
+  const TX_TYPES = [['out', 'Expense'], ['inc', 'Income'], ['fund', 'Fund'], ['ud', 'Loans']];
+  const openTxFilter = () => {
+    _tf = JSON.parse(JSON.stringify(txFilter));
+    const names = []; Object.values(appState.months).forEach(m => (m.categories || []).forEach(c => { if (!names.includes(c.name)) names.push(c.name); }));
+    const grp = (title, kind, list, single) => `<div style="font-weight:800;font-size:.82rem;margin:14px 0 6px">${title}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${list.map(([v, t]) => `<button class="btn-secondary tfb" data-k="${kind}" data-v="${escapeHtml(String(v))}" style="padding:7px 12px;font-size:.78rem" onclick="tfPick('${kind}',this.dataset.v,${single ? 'true' : 'false'})">${escapeHtml(t)}</button>`).join('')}</div>`;
+    openModal(head('Filter') + grp('Period', 'period', TX_PERIODS, true) + `<div style="display:flex;gap:8px;margin-top:8px"><div style="flex:1"><label class="form-label">From</label><input id="tfFrom" type="date" class="form-input" value="${_tf.from}" onchange="tfDate()"></div><div style="flex:1"><label class="form-label">To</label><input id="tfTo" type="date" class="form-input" value="${_tf.to}" onchange="tfDate()"></div></div>`
+      + grp('Type', 'types', TX_TYPES) + grp('Category (expenses)', 'cats', names.map(n => [n, n])) + grp('Payment (expenses)', 'pays', ['Cash', 'UPI', 'Card', 'Other', 'Not set'].map(p => [p, p]))
+      + `<div style="display:flex;gap:10px;margin-top:16px"><button class="btn-secondary" style="flex:1;justify-content:center;padding:12px" onclick="tfReset()">Reset</button><button class="btn-primary" style="flex:1;justify-content:center;padding:12px" onclick="tfApply()">Apply</button></div>`);
+    tfStyle();
+  };
+  const tfStyle = () => document.querySelectorAll('.tfb').forEach(b => { const k = b.dataset.k, v = b.dataset.v, on = k === 'period' ? _tf.period === v : _tf[k].includes(v); b.style.background = on ? 'var(--accent-soft)' : ''; b.style.color = on ? 'var(--accent)' : ''; b.style.borderColor = on ? 'var(--accent)' : ''; });
+  const tfPick = (k, v, single) => { if (single) _tf.period = v; else _tf[k] = _tf[k].includes(v) ? _tf[k].filter(x => x !== v) : _tf[k].concat(v); tfStyle(); };
+  const tfDate = () => { _tf.from = document.getElementById('tfFrom').value; _tf.to = document.getElementById('tfTo').value; if (_tf.from || _tf.to) _tf.period = 'custom'; tfStyle(); };
+  const tfReset = () => { _tf = { period: 'month', from: '', to: '', types: [], cats: [], pays: [] }; txFilter = JSON.parse(JSON.stringify(_tf)); closeModal(); renderTxns(); };
+  const tfApply = () => { if (_tf.period === 'custom' && !_tf.from && !_tf.to) { showToast('Pick a from or to date'); return; } if (_tf.period !== 'custom') { _tf.from = ''; _tf.to = ''; } txFilter = JSON.parse(JSON.stringify(_tf)); closeModal(); renderTxns(); };
   const renderTxns = () => {
     const el = document.getElementById('txList'); if (!el) return;
-    const all = collectTxns();
-    document.getElementById('txIn').textContent = money(all.filter(r => r.k === 'inc').reduce((t, r) => t + r.amt, 0));
-    document.getElementById('txOut').textContent = money(all.filter(r => r.k === 'out').reduce((t, r) => t + r.amt, 0));
-    const chip = (v, t) => `<button class="btn-secondary" style="padding:6px 12px;font-size:.76rem;white-space:nowrap;${txType === v ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="txType='${v}';renderTxns()">${t}</button>`;
-    document.getElementById('txChips').innerHTML = chip('all', 'Sab') + chip('out', 'Kharch') + chip('inc', 'Income') + chip('fund', 'Fund') + chip('ud', 'Loans') ; document.getElementById('txPeriods').innerHTML = PERIODS.map(([v, t]) => `<button class="btn-secondary" style="padding:6px 12px;font-size:.76rem;white-space:nowrap;${txPeriod === v ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="txPeriod='${v}';renderTxns()">${t}</button>`).join('');
-    const q = txQ.trim().toLowerCase();
-    const rows = all.filter(r => (txType === 'all' || r.k === txType) && (!q || `${r.title} ${r.sub} ${r.amt}`.toLowerCase().includes(q)));
+    const q = txQ.trim().toLowerCase(), F = txFilter;
+    const rows = collectTxns().filter(r => (!F.types.length || F.types.includes(r.k)) && (!F.cats.length || (r.k === 'out' && F.cats.includes(r.sub))) && (!F.pays.length || (r.k === 'out' && F.pays.includes((r.ex && r.ex.pay) || 'Not set'))) && (!q || `${r.title} ${r.sub} ${r.amt}`.toLowerCase().includes(q)));
+    _txView = rows;
+    document.getElementById('txIn').textContent = money(rows.filter(r => r.k === 'inc').reduce((t, r) => t + r.amt, 0));
+    document.getElementById('txOut').textContent = money(rows.filter(r => r.k === 'out').reduce((t, r) => t + r.amt, 0));
+    const n = txCount(), fb = document.getElementById('txFilterBtn'); fb.textContent = n ? `Filter (${n})` : 'Filter'; fb.style.background = n ? 'var(--accent-soft)' : ''; fb.style.color = n ? 'var(--accent)' : '';
+    const ch = (t, k, v) => `<button class="btn-secondary" style="padding:5px 10px;font-size:.72rem" onclick="txClear('${k}','${escapeHtml(String(v || ''))}')">${escapeHtml(t)} ✕</button>`;
+    document.getElementById('txActive').innerHTML = n ? (F.period !== 'month' ? ch(periodLabel(F.period), 'period') : '') + F.types.map(t => ch((TX_TYPES.find(x => x[0] === t) || [, t])[1], 'types', t)).join('') + F.cats.map(c => ch(c, 'cats', c)).join('') + F.pays.map(p => ch(p, 'pays', p)).join('') + `<button class="btn-secondary" style="padding:5px 10px;font-size:.72rem" onclick="txClear('all')">Clear all</button>` : '';
     if (!rows.length) { el.innerHTML = '<div class="empty-state">No transactions found.</div>'; return; }
-    const col = { out: 'var(--danger)', inc: 'var(--success)', fund: 'var(--accent)', ud: 'var(--warning)' };
-    el.innerHTML = rows.map((r, ri) => { _txView = rows;
-      const act = r.exp ? `openEditExpenseModal('${r.exp}','${r.cat}')` : r.del ? `askConfirm('Delete this income?','delExtraIncome(\'${r.del}\')')` : r.k === 'fund' ? "switchMainTab('funds')" : r.k === 'ud' ? "switchMainTab('udhaar')" : '';
-      const sign = r.k === 'out' ? '−' : r.k === 'inc' ? '+' : (r.tag || '');
-      return `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="openTxnSheet(${ri})">
-        <div style="width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:${col[r.k]}"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">${TX_ICON[r.k]}</svg></div>
-        <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.title)}</div><div style="font-size:.72rem;color:var(--text-muted)">${escapeHtml(r.sub)} · ${r.date}${r.tm ? ' · ' + fmt12(r.tm) : ''}</div></div>
-        <div style="font-weight:800;color:${col[r.k]}">${sign}${money(r.amt)}</div></div>`;
-    }).join('');
+    const col = { out: 'var(--danger)', inc: 'var(--success)', fund: 'var(--accent)', ud: 'var(--warning)' }, groups = {}, order = [];
+    rows.forEach((r, ri) => { const k = r.date || 'No date'; if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push([r, ri]); });
+    el.innerHTML = order.map(dt => { const g = groups[dt], sp = g.filter(x => x[0].k === 'out').reduce((t, x) => t + x[0].amt, 0), inc = g.filter(x => x[0].k === 'inc').reduce((t, x) => t + x[0].amt, 0), lab = /^\d{4}-/.test(dt) ? new Date(dt + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) : dt;
+      return `<div><div style="display:flex;justify-content:space-between;font-size:.76rem;font-weight:700;color:var(--text-secondary);margin:8px 2px 6px"><span>${lab}</span><span>${inc ? `<span style="color:var(--success)">+${money(inc)}</span> ` : ''}${sp ? `<span style="color:var(--danger)">−${money(sp)}</span>` : ''}</span></div>` + g.map(([r, ri]) => {
+        const sign = r.k === 'out' ? '−' : r.k === 'inc' ? '+' : (r.tag || '');
+        return `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:12px;cursor:pointer;margin-bottom:6px" onclick="openTxnSheet(${ri})">
+          <div style="width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:${col[r.k]}"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">${TX_ICON[r.k]}</svg></div>
+          <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.title)}</div><div style="font-size:.72rem;color:var(--text-muted)">${escapeHtml(r.sub)}${r.tm ? ' · ' + fmt12(r.tm) : ''}</div></div>
+          <div style="font-weight:800;color:${col[r.k]}">${sign}${money(r.amt)}</div></div>`; }).join('') + '</div>'; }).join('');
   };
 
   /* ---- [REMINDERS] A: app kholte hi alert, B: Calendar (.ics) ---- */
@@ -2730,7 +2751,8 @@ ${n.body}`;
      [CATEGORY PAGE] poora naya screen, category ki saari details
      ========================================================================== */
   let catPageId = null;
-  const openCategoryPage = (catId) => { catPageId = catId; renderCatPage(true); switchMainTab('catdetail'); window.scrollTo(0, 0); };
+  let catFrom = 'budget';
+  const openCategoryPage = (catId) => { catFrom = activeTabName(); catPageId = catId; renderCatPage(true); switchMainTab('catdetail'); window.scrollTo(0, 0); };
   const renderCatPage = (force) => {
     const el = document.getElementById('tab-catdetail'); if (!el || (!force && activeTabName() !== 'catdetail')) return;
     const m = getCurrentMonthData(), cat = (m.categories || []).find(x => x.id === catPageId);
@@ -2785,6 +2807,7 @@ ${n.body}`;
 
   /* ---- [BACK BUTTON] ---- */
   let modalPushed = false, ignorePop = 0, navSilent = false;
+  const parentOf = (t) => t === 'noteedit' ? 'notes' : (t === 'catdetail' && catFrom && catFrom !== 'budget' && catFrom !== 'catdetail' ? catFrom : null);
   const activeTabName = () => { const e = document.querySelector('.tab-pane.active'); return e ? e.id.replace('tab-', '') : 'budget'; };
   let tabPushed = false;
   const navPush = (tab) => { if (navSilent) return; if (tab !== 'budget' && activeTabName() === 'budget') { history.pushState({ t: 1 }, ''); tabPushed = true; } else if (tab === 'budget' && tabPushed) { tabPushed = false; ignorePop++; history.back(); } };
@@ -2799,7 +2822,7 @@ ${n.body}`;
     if (document.getElementById('exitDlg').classList.contains('open')) { history.pushState({ g: 1 }, ''); hideExitDlg(); return; }
     if (modalPushed) { modalPushed = false; hideModalNow(); return; }
     if (document.getElementById('lockScreen').style.display !== 'none' && document.getElementById('lockScreen').style.display !== '') { history.pushState({ g: 1 }, ''); return; }
-    if (activeTabName() !== 'budget') { tabPushed = false; navSilent = true; switchMainTab('budget'); navSilent = false; return; }
+    if (activeTabName() !== 'budget') { const par = parentOf(activeTabName()); if (par) { navSilent = true; switchMainTab(par); navSilent = false; history.pushState({ t: 1 }, ''); tabPushed = true; return; } tabPushed = false; navSilent = true; switchMainTab('budget'); navSilent = false; return; }
     history.pushState({ g: 1 }, '');
     document.getElementById('exitDlg').classList.add('open');
   });
