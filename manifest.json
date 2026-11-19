@@ -1,7 +1,7 @@
 {
   "name": "SmartBudget",
   "short_name": "SmartBudget",
-  "description": "Personal budget, funds, plans aur udhaar tracker",
+  "description": "Personal budget, funds, plans and loans tracker",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -26,6 +26,34 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add expense",
+      "short_name": "Add expense",
+      "description": "Open the quick add expense form",
+      "url": "./?action=add",
+      "icons": [
+        {
+          "src": "app-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "short_name": "Transactions",
+      "description": "See all transactions",
+      "url": "./?action=txns",
+      "icons": [
+        {
+          "src": "app-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }

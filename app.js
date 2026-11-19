@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'smart_budget_india_v2';
-  const APP_VERSION = '6.7';
-  const WHATS_NEW = ['Notes: full-screen editor with auto-save, pin to top and word count', 'Salary Savings is now a ledger: Add and Spent entries, one balance, history cannot be edited', 'Loans: Active, Completed and All views, overdue first', 'Transaction details are now view-only, with an Open button to the original screen'];
+  const APP_VERSION = '6.8';
+  const WHATS_NEW = ['Backup reminder: choose 7, 14, 30 days or Off in Settings', 'Report: Download CSV for the chosen period and transaction types', 'Home screen shortcuts: long-press the app icon for Add expense and Transactions'];
 
   const formatINR = (num) => {
     const val = Math.round(Number(num) || 0);
@@ -2016,11 +2016,13 @@ ${n.body}`;
   /* ---------- Backup reminder ---------- */
   const markBackupDone = () => { appState.lastBackup = todayStr(); saveState(); renderBackupReminder(); };
   const daysSinceBackup = () => appState.lastBackup ? Math.floor((Date.now() - new Date(appState.lastBackup + 'T00:00:00').getTime()) / 864e5) : null;
+  const backupDays = () => appState.backupDays === undefined ? 14 : Number(appState.backupDays);
+  const setBackupDays = (n) => { appState.backupDays = n; saveState(); renderAll(); };
   const renderBackupReminder = () => {
     const hasData = Object.values(appState.months).some(mo => (mo.expenses || []).length) || appState.udhaar.length || appState.funds.length || (appState.notes || []).length;
     const d = daysSinceBackup();
     const el = document.getElementById('backupReminder');
-    if (hasData && (d === null || d >= 7)) {
+    if (hasData && backupDays() > 0 && (d === null || d >= backupDays())) {
       el.style.display = 'block';
       el.innerHTML = d === null ? '⚠️ <strong>No backup yet.</strong> Tap to take a backup now.' : `⚠️ Last backup was <strong>${d} days ago</strong>. Tap to back up.`;
     } else el.style.display = 'none';
@@ -2045,7 +2047,7 @@ ${n.body}`;
     if (k === 'del') lockEntry = lockEntry.slice(0, -1); else if (lockEntry.length < 4) lockEntry += k;
     renderPinDots();
     if (lockEntry.length === 4) {
-      if (hashPin(lockEntry) === appState.pin) { document.getElementById('lockScreen').style.display = 'none'; lockEntry = ''; setTimeout(showDueAlert, 300); }
+      if (hashPin(lockEntry) === appState.pin) { document.getElementById('lockScreen').style.display = 'none'; lockEntry = ''; setTimeout(showDueAlert, 300); runPendingAction(); }
       else { const box = document.querySelector('.lock-box'); box.classList.add('shake'); document.getElementById('lockMsg').textContent = 'Wrong PIN';
         setTimeout(() => { box.classList.remove('shake'); lockEntry = ''; renderPinDots(); }, 350); }
     }
@@ -2230,7 +2232,7 @@ ${n.body}`;
       <div style="font-size:.78rem;color:var(--text-secondary);margin-top:4px">Transactions</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:8px">${cb('rpTx_out', 'Expenses')}${cb('rpTx_inc', 'Income')}${cb('rpTx_fund', 'Funds')}${cb('rpTx_ud', 'Loans')}</div>
       ${cb('rpFunds', 'Funds overview', false)}${cb('rpUd', 'Loans overview', false)}${cb('rpPlans', 'Upcoming plans', false)}${cb('rpNotes', 'Notes', false)}
-      <button class="btn-primary" style="justify-content:center;padding:12px;width:100%;margin-top:12px" onclick="sharePDF()">Generate PDF</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px"><button class="btn-primary" style="justify-content:center;padding:12px" onclick="sharePDF()">Generate PDF</button><button class="btn-secondary" style="justify-content:center;padding:12px" onclick="downloadCSV()">Download CSV</button></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px"><button class="btn-secondary" style="justify-content:center;padding:12px" onclick="shareReport()">Share text</button><button class="btn-secondary" style="justify-content:center;padding:12px" onclick="copyReport()">Copy text</button></div>`);
     rpSet(rpPeriod);
   };
@@ -2453,6 +2455,7 @@ ${n.body}`;
     const v = document.getElementById('appVerLabel'); if (!v) return;
     document.documentElement.style.fontSize = { sm: '90%', md: '100%', lg: '112%' }[appState.textSize || 'md'];
     document.getElementById('textSizeBtns').innerHTML = [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']].map(([k, t]) => `<button class="btn-secondary" style="flex:1;justify-content:center;padding:9px;${(appState.textSize || 'md') === k ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="setTextSize('${k}')">${t}</button>`).join('');
+    document.getElementById('backupDaysBtns').innerHTML = [[7, '7 days'], [14, '14 days'], [30, '30 days'], [0, 'Off']].map(([n, t]) => `<button class="btn-secondary" style="flex:1;justify-content:center;padding:8px 4px;font-size:.78rem;${backupDays() === n ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="setBackupDays(${n})">${t}</button>`).join('');
     const si = getStorageInfo(); document.getElementById('storageLine').textContent = `Storage: ${si.kb} KB used of about 5 MB (${si.pct}%)`;
     v.textContent = 'v' + APP_VERSION;
     document.getElementById('whatsNewList').innerHTML = WHATS_NEW.map(x => `<li>${escapeHtml(x)}</li>`).join('');
@@ -2664,7 +2667,7 @@ ${n.body}`;
     (m.categories || []).forEach(c => { const sp = m.expenses.filter(e => e.catId === c.id).reduce((x, e) => x + Number(e.amount), 0); if (Number(c.limit) > 0 && sp > c.limit) a.push({ key: 'cat:' + c.id + ':' + mk, ic: 'warn', title: c.name + ' over limit', detail: `Spent ${formatINR(sp)} of ${formatINR(c.limit)}`, amt: sp - c.limit, go: 'budget' }); });
     if (mt.netActualSaving < 0) a.push({ key: 'over:' + mk, ic: 'warn', title: 'Overspent this month', detail: 'Spending is more than income', amt: -mt.netActualSaving, go: 'budget' });
     const bd = appState.lastBackup ? -daysFromToday(appState.lastBackup) : null;
-    if (bd === null || bd > 14) a.push({ key: 'backup', ic: 'save', title: 'Backup', detail: bd === null ? 'No backup taken yet' : `Last backup ${bd} days ago`, amt: 0, go: 'settings' });
+    if (backupDays() > 0 && (bd === null || bd >= backupDays())) a.push({ key: 'backup', ic: 'save', title: 'Backup', detail: bd === null ? 'No backup taken yet' : `Last backup ${bd} days ago`, amt: 0, go: 'settings' });
     const sInfo = getStorageInfo(); if (sInfo.pct >= 70) a.push({ key: 'storage', ic: 'warn', title: 'Storage almost full', detail: `Using ${sInfo.pct}% of local storage. Take a backup.`, amt: 0, go: 'settings' });
     return a.filter(x => !(appState.alertsDismissed || []).includes(x.key));
   };
@@ -2881,6 +2884,30 @@ ${n.body}`;
   const deleteNotePage = () => askConfirm('Delete this note?', 'removeNote()');
   const removeNote = () => { clearTimeout(_noteTimer); if (_note && !_note.isNew) appState.notes = appState.notes.filter(n => n.id !== _note.id); _note = null; saveState(); renderNotesTab(); switchMainTab('notes'); showToast('Note deleted'); };
 
+
+  /* ---- [CSV] Report ke tick-boxes ke hisaab se spreadsheet file ---- */
+  const downloadCSV = () => {
+    const types = ['out', 'inc', 'fund', 'ud'].filter(k => { const b = document.getElementById('rpTx_' + k); return b && b.checked; });
+    if (!types.length) { showToast('Select at least one transaction type'); return; }
+    const rows = collectTxns(rpPeriod).filter(r => types.includes(r.k)).sort((p, q) => (p.date || '').localeCompare(q.date || ''));
+    const q = (v) => `"${String(v === undefined || v === null ? '' : v).replace(/"/g, '""')}"`, hm = (ts) => ts ? new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+    const lines = [['Date', 'Time', 'Type', 'Title', 'Category', 'Payment', 'Amount', 'Notes']];
+    rows.forEach(r => { let type = '', cat = '', pay = '', time = '', notes = '';
+      if (r.k === 'out') { type = 'Expense'; cat = r.sub; pay = (r.ex && r.ex.pay) || ''; time = (r.ex && r.ex.time) || ''; notes = (r.ex && r.ex.desc) || ''; }
+      else if (r.k === 'inc') { type = 'Income'; notes = (r.ei && r.ei.note) || ''; time = hm(tsFromId(r.ei && r.ei.id)); }
+      else if (r.k === 'fund') { type = r.ftype === 'add' ? 'Fund deposit' : 'Fund withdrawal'; time = hm(tsFromId(r.hid)); notes = r.note || ''; }
+      else { type = r.utype === 'lent' ? 'Loan lent' : 'Loan borrowed'; time = hm(tsFromId(r.hid)); notes = r.note || r.act || ''; }
+      lines.push([r.date, time, type, r.title, cat, pay, r.amt, notes]); });
+    const url = URL.createObjectURL(new Blob(['\uFEFF' + lines.map(l => l.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' })), el = document.createElement('a');
+    el.href = url; el.download = `SmartBudget_${rpPeriod}_${todayStr()}.csv`; document.body.appendChild(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    showToast(rows.length ? `CSV downloaded (${rows.length} rows)` : 'CSV downloaded (no rows for this period)');
+  };
+
+  /* ---- [SHORTCUTS] icon dabakar rakhne par seedha screen ---- */
+  let pendingAction = new URLSearchParams(location.search).get('action');
+  const runPendingAction = () => { const act = pendingAction; if (!act) return; pendingAction = null; try { history.replaceState(history.state, '', location.pathname); } catch (e) {}
+    setTimeout(() => { if (act === 'add') openQuickExpenseModal(); else if (act === 'txns') switchMainTab('txns'); }, 1400); };
+
   window.onload = () => {
     startIconify();
     loadState();
@@ -2889,7 +2916,8 @@ ${n.body}`;
     initBackupDefaults();
     buildKeypad();
     renderAll();
-    if (appState.pin) showLock(); else setTimeout(() => { if (appState.setupDone === false) openSetupModal(); else renderBell(); }, 1500);
+    if (appState.pin) showLock(); else runPendingAction();
+    if (!appState.pin) setTimeout(() => { if (appState.setupDone === false) openSetupModal(); else renderBell(); }, 1500);
     (() => { const sp = document.getElementById('splash'); if (!sp) return; if (appState.noAnim) { sp.remove(); return; } setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 400); }, 1250); })();
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
