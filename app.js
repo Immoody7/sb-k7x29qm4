@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'smart_budget_india_v2';
-  const APP_VERSION = '6.9';
-  const WHATS_NEW = ['Back button: from a note it now returns to the Notes list', 'Transactions are grouped by day with daily totals', 'Transactions: one Filter button with Period (including a custom range), Type, Category and Payment'];
+  const APP_VERSION = '6.10';
+  const WHATS_NEW = ['One Income window: salary, target saving, extra income and history together', 'Dashboard income shows Salary + Extra, tap the amount or Edit to open it', 'Extra income removed from the side menu'];
 
   const formatINR = (num) => {
     const val = Math.round(Number(num) || 0);
@@ -324,6 +324,8 @@ const STORAGE_KEY = 'smart_budget_india_v2';
 
     // 2. Main Hero Numbers
     document.getElementById('displayIncome').textContent = formatINR(metrics.income);
+    const _ex = (getCurrentMonthData().extraIncome || []).reduce((s, x) => s + Number(x.amount), 0), _bd = document.getElementById('incomeBreakdown');
+    if (_bd) { _bd.style.display = _ex > 0 ? 'block' : 'none'; _bd.textContent = `Salary ${formatINR(metrics.income - _ex)} + Extra ${formatINR(_ex)}`; }
     document.getElementById('displayTargetPct').textContent = `${metrics.targetPct}% (${formatINR(metrics.targetAmt)})`;
 
     document.getElementById('statExpenses').textContent = formatINR(metrics.totalExpenses);
@@ -921,7 +923,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
       .replace(/"/g, '&quot;');
   };
 
-  const openIncomeModal = () => {
+  const _old_openIncomeModal = () => {
     const mData = getCurrentMonthData();
     openModal(`
       <div class="modal-header">
@@ -940,7 +942,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     `);
   };
 
-  const saveIncomeSettings = () => {
+  const _old_saveIncomeSettings = () => {
     const mData = getCurrentMonthData();
     mData.income = Math.max(0, Number(document.getElementById('inpIncome').value) || 0);
     mData.targetSavingPct = Math.max(0, Math.min(100, Number(document.getElementById('inpTargetPct').value) || 0));
@@ -2160,7 +2162,7 @@ ${n.body}`;
   };
 
   /* ---- Extra income ---- */
-  const openExtraIncomeModal = () => {
+  const _old_openExtraIncomeModal = () => {
     const mo = getCurrentMonthData(); const list = mo.extraIncome || [];
     openModal(head('💵 Extra Income (' + formatMonthDisplay(appState.selectedMonth) + ')') + `
       <div class="form-group"><label class="form-label">Amount (₹)</label><input id="eiAmt" type="number" inputmode="decimal" class="form-input"></div>
@@ -2168,13 +2170,13 @@ ${n.body}`;
       <button class="btn-primary" style="justify-content:center;padding:12px;margin-bottom:12px" onclick="saveExtraIncome()">Add Income</button>
       ${list.map(x => `<div class="row-item"><span>${escapeHtml(x.note)} <small style="color:var(--text-muted)">${x.date}</small></span><span><strong>${money(x.amount)}</strong> <button class="mini-icon-btn" onclick="delExtraIncome('${x.id}')">🗑️</button></span></div>`).join('')}`);
   };
-  const saveExtraIncome = () => {
+  const _old_saveExtraIncome = () => {
     const a = Number($v('eiAmt')); if (!a || a <= 0) { showToast('Enter valid amount'); return; }
     const mo = getCurrentMonthData(); if (!mo.extraIncome) mo.extraIncome = [];
     mo.extraIncome.unshift({ id: 'ei_' + Date.now(), amount: a, note: $v('eiNote').trim() || 'Extra income', date: todayStr(), time: nowHM() });
     saveState(); renderAll(); openExtraIncomeModal(); showToast('Income added');
   };
-  const delExtraIncome = (id) => { snap(); const mo = getCurrentMonthData(); mo.extraIncome = mo.extraIncome.filter(x => x.id !== id); saveState(); renderAll(); openExtraIncomeModal(); showUndo('Income deleted'); };
+  const _old_delExtraIncome = (id) => {};
 
   /* ---- Split (creates loan entries) ---- */
   const openSplitModal = () => openModal(head('👥 Split Expense') + `
@@ -2553,8 +2555,8 @@ ${n.body}`;
     const r = _txView[i]; if (!r) return;
     if (r.k === 'out' && r.ex) return openExpenseSheet(r.ex.id);
     if (r.k === 'inc') { const x = r.ei, ts = x ? tsFromId(x.id) : 0;
-      return openModal(shHead('+', r.amt, 'Income', r.title) + shRow('Date', r.date || '') + shRow('Note', x && x.note ? escapeHtml(x.note) : '') + (x ? '' : '<p style="font-size:.8rem;color:var(--text-secondary);margin-top:8px">This is your monthly income. Edit it from the dashboard.</p>') + (ts ? shHist([{ text: 'Created', ts }]) : '')
-        + (x ? shBtns([['Open extra income', 'openExtraIncomeModal()', 'btn-primary']]) : '')); }
+      return openModal(shHead('+', r.amt, 'Income', r.title) + shRow('Date', r.date || '') + shRow('Note', x && x.note ? escapeHtml(x.note) : '') + (x ? '' : '<p style="font-size:.8rem;color:var(--text-secondary);margin-top:8px">This is your monthly salary.</p>') + (ts ? shHist([{ text: 'Created', ts }]) : '')
+        + shBtns([['Open income', 'openIncomeModal()', 'btn-primary']])); }
     if (r.k === 'fund') { const ts = tsFromId(r.hid);
       return openModal(shHead(r.ftype === 'add' ? '+' : '−', r.amt, 'Fund', r.title) + shRow('Type', r.ftype === 'add' ? 'Added to fund' : 'Withdrawn') + shRow('Date', r.date || '') + shRow('Note', r.note ? escapeHtml(r.note) : '') + (ts ? shHist([{ text: 'Created', ts }]) : '') + shBtns([['Open fund', `openFundSheet('${r.fid}')`, 'btn-primary']])); }
     const ts = tsFromId(r.hid);
@@ -2783,7 +2785,7 @@ ${n.body}`;
      ========================================================================== */
   let sidePushed = false;
   const SVG = (p) => `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">${p}</svg>`;
-  const MENU_ACTIONS = { calc: () => switchMainTab('calc'), notes: () => switchMainTab('notes'), shop: () => openShoppingModal(), split: () => openSplitModal(), search: () => openSearchModal(), insights: () => openInsights(), recurring: () => openRecurringModal(), extra: () => openExtraIncomeModal(), report: () => openReportModal(), backup: () => switchMainTab('settings'), settings: () => switchMainTab('settings'), themes: () => openThemeModal(), about: () => openAbout() };
+  const MENU_ACTIONS = { calc: () => switchMainTab('calc'), notes: () => switchMainTab('notes'), shop: () => openShoppingModal(), split: () => openSplitModal(), search: () => openSearchModal(), insights: () => openInsights(), recurring: () => openRecurringModal(), report: () => openReportModal(), backup: () => switchMainTab('settings'), settings: () => switchMainTab('settings'), themes: () => openThemeModal(), about: () => openAbout() };
   const menuGo = (k) => { closeMenu(); setTimeout(MENU_ACTIONS[k], 120); };
   const openMenu = () => {
     const it = (k, ic, t) => `<button class="sm-item" onclick="menuGo('${k}')">${SVG(ic)}<span>${t}</span></button>`;
@@ -2791,7 +2793,7 @@ ${n.body}`;
       <div class="sm-label">Tools</div>
       ${it('calc', '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01"/>', 'Calculator')}${it('notes', '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>', 'Notes')}${it('shop', '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/>', 'Shopping list')}${it('split', '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>', 'Split bill')}${it('search', '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>', 'Search')}
       <div class="sm-label">Money</div>
-      ${it('insights', '<path d="M3 3v18h18M7 14l4-4 3 3 5-6"/>', 'Insights')}${it('recurring', '<path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/>', 'Recurring expenses')}${it('extra', '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>', 'Extra income')}
+      ${it('insights', '<path d="M3 3v18h18M7 14l4-4 3 3 5-6"/>', 'Insights')}${it('recurring', '<path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/>', 'Recurring expenses')}
       <div class="sm-label">Data</div>
       ${it('report', '<path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>', 'Report (PDF)')}${it('backup', '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8"/>', 'Backup &amp; Restore')}
       <div class="sm-label">App</div>
@@ -2930,6 +2932,40 @@ ${n.body}`;
   let pendingAction = new URLSearchParams(location.search).get('action');
   const runPendingAction = () => { const act = pendingAction; if (!act) return; pendingAction = null; try { history.replaceState(history.state, '', location.pathname); } catch (e) {}
     setTimeout(() => { if (act === 'add') openQuickExpenseModal(); else if (act === 'txns') switchMainTab('txns'); }, 1400); };
+
+
+  /* ==========================================================================
+     [INCOME WINDOW] salary + target + extra income + history, ek hi window
+     ========================================================================== */
+  const openIncomeModal = () => {
+    const m = getCurrentMonthData(), ex = m.extraIncome || [], exTotal = ex.reduce((s, x) => s + Number(x.amount), 0), sal = Number(m.income) || 0;
+    const hist = (m.incomeLog || []).concat(ex.map(x => ({ text: `Extra income added ${money(x.amount)} · ${x.note}`, ts: tsFromId(x.id) }))).filter(x => x.ts).sort((p, q) => q.ts - p.ts);
+    openModal(head('Income · ' + formatMonthDisplay(appState.selectedMonth)) + `<div style="font-size:2rem;font-weight:800">${formatINR(sal + exTotal)}</div><div style="font-size:.78rem;color:var(--text-secondary);margin-bottom:10px">Salary ${formatINR(sal)} + Extra ${formatINR(exTotal)}</div>
+      <div class="form-group"><label class="form-label">Monthly salary (₹)</label><input type="number" inputmode="decimal" id="inpIncome" class="form-input" value="${sal}" min="0"></div>
+      <div class="form-group"><label class="form-label">Target saving (%)</label><input type="number" inputmode="decimal" id="inpTargetPct" class="form-input" value="${m.targetSavingPct}" min="0" max="100"></div>
+      <button class="btn-primary" style="justify-content:center;padding:12px;width:100%" onclick="saveIncomeAll()">Save salary and target</button>
+      <div style="font-weight:800;font-size:.86rem;margin:18px 0 6px">Extra income</div>
+      ${ex.length ? ex.map(x => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-color)"><div style="min-width:0"><div style="font-weight:700;font-size:.86rem">${escapeHtml(x.note)}</div><div style="font-size:.72rem;color:var(--text-muted)">${x.date || ''}${x.time ? ' · ' + fmt12(x.time) : ''}</div></div><div style="display:flex;align-items:center;gap:8px"><strong style="color:var(--success)">+${money(x.amount)}</strong><button class="btn-secondary" style="padding:4px 9px;font-size:.7rem" onclick="delExtraIncome('${x.id}')">Delete</button></div></div>`).join('') : '<div style="font-size:.8rem;color:var(--text-muted);padding:4px 0">No extra income this month.</div>'}
+      <div style="display:flex;gap:8px;margin-top:12px"><div class="form-group" style="flex:1;margin:0"><label class="form-label">Amount (₹)</label><input id="eiAmt" type="number" inputmode="decimal" class="form-input"></div><div class="form-group" style="flex:1.3;margin:0"><label class="form-label">Source</label><input id="eiNote" class="form-input" placeholder="Bonus, freelance..."></div></div>
+      <div style="display:flex;gap:8px;margin-top:8px"><div class="form-group" style="flex:1;margin:0"><label class="form-label">Date</label><input id="eiDate" type="date" class="form-input" value="${todayStr()}"></div><div class="form-group" style="flex:1;margin:0"><label class="form-label">Time</label><input id="eiTime" type="time" class="form-input" value="${nowHM()}"></div></div>
+      <button class="btn-secondary" style="justify-content:center;padding:11px;width:100%;margin-top:10px" onclick="saveExtraIncome()">Add extra income</button>
+      <div style="font-weight:800;font-size:.86rem;margin:18px 0 4px">History</div>
+      <div style="max-height:24vh;overflow-y:auto">${hist.length ? hist.map(x => `<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-color);font-size:.78rem"><span>${escapeHtml(x.text)}</span><span style="color:var(--text-muted);white-space:nowrap">${fmtTs(x.ts)}</span></div>`).join('') : '<div style="font-size:.78rem;color:var(--text-muted)">No history yet. Changes from now on are recorded here.</div>'}</div>`);
+  };
+  const openExtraIncomeModal = () => openIncomeModal();
+  const saveIncomeAll = () => {
+    const m = getCurrentMonthData(), s = Math.max(0, Number($v('inpIncome')) || 0), t = Math.max(0, Math.min(100, Number($v('inpTargetPct')) || 0)); m.incomeLog = m.incomeLog || [];
+    if (s !== Number(m.income)) m.incomeLog.unshift({ text: `Salary ${money(m.income)} → ${money(s)}`, ts: Date.now() });
+    if (t !== Number(m.targetSavingPct)) m.incomeLog.unshift({ text: `Target saving ${m.targetSavingPct}% → ${t}%`, ts: Date.now() });
+    m.income = s; m.targetSavingPct = t; saveState(); renderAll(); openIncomeModal(); showToast('Income updated');
+  };
+  const saveExtraIncome = () => {
+    const amt = Number($v('eiAmt')); if (!(amt > 0)) { showToast('Enter a valid amount'); return; }
+    const m = getCurrentMonthData(); if (!m.extraIncome) m.extraIncome = [];
+    m.extraIncome.unshift({ id: 'ei_' + Date.now(), amount: amt, note: $v('eiNote').trim() || 'Extra income', date: $v('eiDate') || todayStr(), time: $v('eiTime') || nowHM() });
+    saveState(); renderAll(); openIncomeModal(); showToast('Extra income added');
+  };
+  const delExtraIncome = (id) => { snap(); const m = getCurrentMonthData(), x = (m.extraIncome || []).find(y => y.id === id); if (!x) return; (m.incomeLog = m.incomeLog || []).unshift({ text: `Extra income deleted ${money(x.amount)} · ${x.note}`, ts: Date.now() }); m.extraIncome = m.extraIncome.filter(y => y.id !== id); saveState(); renderAll(); openIncomeModal(); showUndo('Income deleted'); };
 
   window.onload = () => {
     startIconify();
