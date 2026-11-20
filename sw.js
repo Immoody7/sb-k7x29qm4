@@ -1,5 +1,5 @@
-// Offline + tez khulna. Update ke baad neeche version badhao (6.10 -> 7.0).
-const CACHE = 'smartbudget-6.10';
+// Offline + tez khulna. Update ke baad neeche version badhao (7.0 -> 7.1).
+const CACHE = 'smartbudget-7.0';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'app-icon-192.png', 'app-icon-512.png', 'icon-maskable-512.png'];
 const fresh = (u) => fetch(new Request(u, { cache: 'reload' }));  // GitHub ki purani copy ko chhodo
 

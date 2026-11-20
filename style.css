@@ -1279,3 +1279,12 @@
     .fund-tag{font-size:.68rem;font-weight:800;padding:3px 9px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
     .drag-handle{font-size:1.2rem;line-height:1;padding:4px 6px;color:var(--text-muted);touch-action:none;cursor:grab}
     .cat-card{border-radius:20px;transition:transform .15s ease}.cat-card:active{transform:scale(.985)}
+
+    /* ===== v7.0 ===== */
+    #updateBar{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9400;display:none;max-width:440px;width:calc(100% - 24px);padding:11px 14px;border-radius:14px;background:var(--grad);color:#fff;font-weight:700;font-size:.86rem;box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer;text-align:center}
+    .faq-item{border-bottom:1px solid var(--border-color)}
+    .faq-item summary{padding:12px 2px;font-weight:700;font-size:.88rem;cursor:pointer;list-style:none}
+    .faq-item summary::-webkit-details-marker{display:none}
+    .faq-item p{margin:0 0 12px;font-size:.84rem;line-height:1.55;color:var(--text-secondary)}
+    .faq-group{font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin:16px 0 2px}
+    .stat-mini{cursor:pointer;transition:transform .15s ease}.stat-mini:active{transform:scale(.97)}

@@ -7,7 +7,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="app-icon-192.png" />
   <title>SmartBudget - Personal Finance & Loans Manager</title>
-  <link rel="stylesheet" href="style.css?v=6.10" />
+  <link rel="stylesheet" href="style.css?v=7.0" />
 </head>
 <body>
   <div id="splash"><div class="sp-in"><svg class="sp-logo" viewBox="0 0 100 100" width="132" height="132"><defs><linearGradient id="spg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c6cff"/><stop offset=".55" stop-color="#b266ff"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs><circle cx="50" cy="50" r="48" fill="url(#spg)"/><text x="50" y="68" text-anchor="middle" font-size="56" font-weight="800" fill="#fff" font-family="sans-serif">₹</text></svg><div class="sp-name">SmartBudget</div><div class="sp-bar"><i></i></div></div></div>
@@ -87,22 +87,22 @@
         </div>
 
         <div class="breakdown-grid">
-          <div class="stat-mini">
+          <div class="stat-mini" onclick="openStatSheet('spent')">
             <div class="stat-mini-label"><span class="dot" style="background:var(--danger);"></span>Total Spent</div>
             <div class="stat-mini-val" id="statExpenses">₹0</div>
             <div class="stat-mini-sub">Categories + Marked Plans</div>
           </div>
-          <div class="stat-mini">
+          <div class="stat-mini" onclick="openStatSheet('saved')">
             <div class="stat-mini-label"><span class="dot" style="background:var(--accent);"></span>Saved in Funds & Salary</div>
             <div class="stat-mini-val" id="statFundAlloc" style="color:var(--accent);">₹0</div>
             <div class="stat-mini-sub" id="statFundBreakdown">Funds: ₹0 • Salary: ₹0</div>
           </div>
-          <div class="stat-mini">
+          <div class="stat-mini" onclick="openStatSheet('cash')">
             <div class="stat-mini-label"><span class="dot" style="background:var(--warning);"></span>Unspent Cash</div>
             <div class="stat-mini-val" id="statCashLeft">₹0</div>
             <div class="stat-mini-sub">Income − Spent − Saved</div>
           </div>
-          <div class="stat-mini">
+          <div class="stat-mini" onclick="openStatSheet('net')">
             <div class="stat-mini-label"><span class="dot" style="background:var(--success);"></span>Net Actual Saving</div>
             <div class="stat-mini-val" style="color:var(--success);" id="statTotalActual">₹0</div>
             <div class="stat-mini-sub">Income − Total Spent</div>
@@ -307,6 +307,8 @@
     </section>
 
     <!-- ==================== TAB 6: SMART NOTES & BACKUP SETTINGS ==================== -->
+    <section class="tab-pane" id="tab-shop"></section>
+
     <section class="tab-pane" id="tab-noteedit"></section>
 
     <section class="tab-pane" id="tab-notes">
@@ -451,6 +453,7 @@
   </div>
 
   <!-- DYNAMIC MODAL BACKDROP & SHEET -->
+  <div id="updateBar" onclick="location.reload()">Update ready · Tap to refresh</div>
   <div id="sideRoot"><div id="sideOverlay" onclick="closeMenu()"></div><aside id="sidePanel"></aside></div>
   <div id="exitDlg"><div class="exit-box"><div class="exit-title">Close the app?</div><div class="exit-text">Do you want to exit SmartBudget?</div><div class="exit-btns"><button class="btn-secondary" onclick="hideExitDlg()">No</button><button class="btn-primary" onclick="exitApp()">Yes, close</button></div></div></div>
   <div class="modal-backdrop" id="modalBackdrop" onclick="closeModalOnBackdrop(event)">
@@ -458,6 +461,6 @@
   </div>
 </div>
 
-<script src="app.js?v=6.10"></script>
+<script src="app.js?v=7.0"></script>
 </body>
 </html>

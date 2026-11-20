@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'smart_budget_india_v2';
-  const APP_VERSION = '6.10';
-  const WHATS_NEW = ['One Income window: salary, target saving, extra income and history together', 'Dashboard income shows Salary + Extra, tap the amount or Edit to open it', 'Extra income removed from the side menu'];
+  const APP_VERSION = '7.0';
+  const WHATS_NEW = ['Update bar: a banner tells you when a new version is ready, and a What\'s new note appears after updating', 'New Help & FAQ in the menu, works offline', 'Tap any of the four dashboard cards for the full breakdown', 'New Shopping list screen: separate from your budget, with Add to budget and a category limit check'];
 
   const formatINR = (num) => {
     const val = Math.round(Number(num) || 0);
@@ -879,6 +879,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     renderUdhaarTab();
     renderTxns();
     renderCatPage();
+    if (activeTabName() === 'shop') renderShop();
     initFundGestures();
     renderDashUdhaar();
     renderBell();
@@ -2049,7 +2050,7 @@ ${n.body}`;
     if (k === 'del') lockEntry = lockEntry.slice(0, -1); else if (lockEntry.length < 4) lockEntry += k;
     renderPinDots();
     if (lockEntry.length === 4) {
-      if (hashPin(lockEntry) === appState.pin) { document.getElementById('lockScreen').style.display = 'none'; lockEntry = ''; setTimeout(showDueAlert, 300); runPendingAction(); }
+      if (hashPin(lockEntry) === appState.pin) { document.getElementById('lockScreen').style.display = 'none'; lockEntry = ''; setTimeout(showDueAlert, 300); setTimeout(showWhatsNew, 500); runPendingAction(); }
       else { const box = document.querySelector('.lock-box'); box.classList.add('shake'); document.getElementById('lockMsg').textContent = 'Wrong PIN';
         setTimeout(() => { box.classList.remove('shake'); lockEntry = ''; renderPinDots(); }, 350); }
     }
@@ -2201,17 +2202,17 @@ ${n.body}`;
   };
 
   /* ---- Shopping list ---- */
-  const openShoppingModal = () => {
+  const _old_openShoppingModal = () => {
     const l = appState.shopping || [];
     openModal(head('🛒 Shopping List') + `<div style="display:flex;gap:6px;margin-bottom:10px"><input id="shName" class="form-input" placeholder="Item"><input id="shPrice" type="number" inputmode="decimal" class="form-input" placeholder="₹" style="max-width:80px"><button class="btn-primary" onclick="addShop()">+</button></div>
       <div style="max-height:34vh;overflow-y:auto">${l.map(x => `<div class="row-item"><label style="display:flex;gap:8px;align-items:center;flex:1"><input type="checkbox" ${x.done ? 'checked' : ''} onchange="toggleShop('${x.id}')"><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${escapeHtml(x.name)}</span></label><span>${x.price ? money(x.price) : ''} <button class="mini-icon-btn" onclick="delShop('${x.id}')">🗑️</button></span></div>`).join('') || '<div style="color:var(--text-muted);font-size:.82rem">The list is empty.</div>'}</div>
       <div class="form-group" style="margin-top:10px"><label class="form-label">Ticked items ko expense banao</label><select id="shCat">${catOptions()}</select></div>
       <button class="btn-secondary" style="justify-content:center;padding:12px;width:100%" onclick="shopToExpense()">✓ Ticked → Expense (${money(l.filter(x => x.done).reduce((s, x) => s + Number(x.price || 0), 0))})</button>`);
   };
-  const addShop = () => { const n = $v('shName').trim(); if (!n) return; (appState.shopping = appState.shopping || []).push({ id: 'sh_' + Date.now(), name: n, price: Number($v('shPrice')) || 0, done: false }); saveState(); openShoppingModal(); };
-  const toggleShop = (id) => { const x = appState.shopping.find(i => i.id === id); x.done = !x.done; saveState(); openShoppingModal(); };
-  const delShop = (id) => { snap(); appState.shopping = appState.shopping.filter(i => i.id !== id); saveState(); openShoppingModal(); showUndo('Item removed'); };
-  const shopToExpense = () => {
+  const _old_addShop = () => { const n = $v('shName').trim(); if (!n) return; (appState.shopping = appState.shopping || []).push({ id: 'sh_' + Date.now(), name: n, price: Number($v('shPrice')) || 0, done: false }); saveState(); openShoppingModal(); };
+  const _old_toggleShop = (id) => { const x = appState.shopping.find(i => i.id === id); x.done = !x.done; saveState(); openShoppingModal(); };
+  const _old_delShop = (id) => { snap(); appState.shopping = appState.shopping.filter(i => i.id !== id); saveState(); openShoppingModal(); showUndo('Item removed'); };
+  const _old_shopToExpense = () => {
     const done = (appState.shopping || []).filter(x => x.done); const sum = done.reduce((s, x) => s + Number(x.price || 0), 0);
     if (!done.length || !sum) { showToast('Tick items with a price'); return; }
     snap(); placeExpense({ id: 'exp_' + Date.now(), catId: $v('shCat'), amount: sum, note: 'Shopping: ' + done.map(x => x.name).join(', ').slice(0, 60), date: todayStr() }, null);
@@ -2222,7 +2223,7 @@ ${n.body}`;
   const buildReport = () => {
     const ym = appState.selectedMonth, mo = getCurrentMonthData(), mt = getMonthMetrics(ym);
     const lines = mo.categories.map(c => [c, mo.expenses.filter(e => e.catId === c.id).reduce((s, e) => s + Number(e.amount), 0)]).filter(x => x[1] > 0).map(([c, v]) => `${c.icon} ${c.name}: ${money(v)} / ${money(c.limit)}`);
-    return `📊 SmartBudget - ${formatMonthDisplay(ym)}\n\nIncome: ${money(mt.income)}\nKharch: ${money(mt.totalExpenses)}\nBachat: ${money(mt.netActualSaving)} (${mt.actualSavingPct}%)\n\n${lines.join('\n')}`;
+    return `📊 SmartBudget - ${formatMonthDisplay(ym)}\n\nIncome: ${money(mt.income)}\nSpent: ${money(mt.totalExpenses)}\nSaved: ${money(mt.netActualSaving)} (${mt.actualSavingPct}%)\n\n${lines.join('\n')}`;
   };
   const rpSet = (p) => { rpPeriod = p; document.querySelectorAll('.rpChip').forEach(b => { const on = b.dataset.p === p; b.style.background = on ? 'var(--accent-soft)' : ''; b.style.color = on ? 'var(--accent)' : ''; b.style.borderColor = on ? 'var(--accent)' : ''; }); };
   const openReportModal = () => {
@@ -2785,7 +2786,7 @@ ${n.body}`;
      ========================================================================== */
   let sidePushed = false;
   const SVG = (p) => `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">${p}</svg>`;
-  const MENU_ACTIONS = { calc: () => switchMainTab('calc'), notes: () => switchMainTab('notes'), shop: () => openShoppingModal(), split: () => openSplitModal(), search: () => openSearchModal(), insights: () => openInsights(), recurring: () => openRecurringModal(), report: () => openReportModal(), backup: () => switchMainTab('settings'), settings: () => switchMainTab('settings'), themes: () => openThemeModal(), about: () => openAbout() };
+  const MENU_ACTIONS = { help: () => openHelp(), calc: () => switchMainTab('calc'), notes: () => switchMainTab('notes'), shop: () => openShoppingModal(), split: () => openSplitModal(), search: () => openSearchModal(), insights: () => openInsights(), recurring: () => openRecurringModal(), report: () => openReportModal(), backup: () => switchMainTab('settings'), settings: () => switchMainTab('settings'), themes: () => openThemeModal(), about: () => openAbout() };
   const menuGo = (k) => { closeMenu(); setTimeout(MENU_ACTIONS[k], 120); };
   const openMenu = () => {
     const it = (k, ic, t) => `<button class="sm-item" onclick="menuGo('${k}')">${SVG(ic)}<span>${t}</span></button>`;
@@ -2797,7 +2798,7 @@ ${n.body}`;
       <div class="sm-label">Data</div>
       ${it('report', '<path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>', 'Report (PDF)')}${it('backup', '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8"/>', 'Backup &amp; Restore')}
       <div class="sm-label">App</div>
-      ${it('settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>', 'Settings')}${it('themes', '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z"/>', 'Themes')}${it('about', '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>', 'About')}`;
+      ${it('settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>', 'Settings')}${it('themes', '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z"/>', 'Themes')}${it('help', '<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5M12 17.5h.01\"/>', 'Help &amp; FAQ')}${it('about', '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>', 'About')}`;
     document.getElementById('sideRoot').classList.add('open');
     if (!sidePushed) { history.pushState({ s: 1 }, ''); sidePushed = true; }
   };
@@ -2806,6 +2807,75 @@ ${n.body}`;
   const openAbout = () => openModal(head('About') + `<div style="text-align:center;padding:6px 0 4px"><div class="brand-logo" style="width:64px;height:64px;font-size:1.9rem;margin:0 auto 10px">₹</div><div style="font-weight:800;font-size:1.15rem">SmartBudget</div><div style="font-size:.8rem;color:var(--text-secondary)">Version ${APP_VERSION}</div></div>
     <p style="font-size:.86rem;line-height:1.55;margin:12px 0">A simple personal money manager: monthly budget, category limits, savings funds, upcoming plans, loans (lent and borrowed), notes and PDF reports.</p>
     <div style="font-size:.84rem;line-height:1.6;padding:12px;border-radius:14px;background:var(--bg-card-alt)"><strong>Your data stays on this phone.</strong> Nothing is uploaded to any server. It works offline. Take a backup from Settings regularly, because clearing browser data removes the app data.</div>`);
+
+
+  /* ==========================================================================
+     [DASHBOARD CARDS] tap -> detail sheet
+     ========================================================================== */
+  const openStatSheet = (kind) => {
+    const ym = appState.selectedMonth, m = getCurrentMonthData(), mt = getMonthMetrics(ym), pk = prevMonthKey(), pm = appState.months[pk] ? getMonthMetrics(pk) : null;
+    const row = (l, v, b) => `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color);font-size:.86rem"><span style="color:var(--text-secondary)">${l}</span><strong${b ? ' style="font-size:1rem"' : ''}>${v}</strong></div>`;
+    const btn = (t, fn) => `<button class="btn-primary" style="justify-content:center;padding:12px;width:100%;margin-top:14px" onclick="closeModal();setTimeout(()=>{${fn}},140)">${t}</button>`;
+    const bar = (n, v, tot) => `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:.8rem"><span>${escapeHtml(n)}</span><span>${formatINR(v)} · ${tot ? Math.round(v / tot * 100) : 0}%</span></div><div style="height:7px;border-radius:7px;background:var(--bg-card-alt);overflow:hidden"><div style="height:100%;width:${tot ? Math.round(v / tot * 100) : 0}%;background:var(--accent)"></div></div></div>`;
+    let body = '';
+    if (kind === 'spent') {
+      const rows = (m.categories || []).map(c => ({ n: c.name, v: m.expenses.filter(e => e.catId === c.id).reduce((s, e) => s + Number(e.amount), 0) })).filter(r => r.v > 0).sort((p, q) => q.v - p.v), catSum = rows.reduce((s, r) => s + r.v, 0), other = Math.max(0, mt.totalExpenses - catSum);
+      if (other > 0) rows.push({ n: 'Plans without a category', v: other });
+      const top = m.expenses.slice().sort((p, q) => Number(q.amount) - Number(p.amount)).slice(0, 5);
+      body = head('Total spent') + `<div style="font-size:2rem;font-weight:800">${formatINR(mt.totalExpenses)}</div>` + (pm ? `<div style="font-size:.78rem;color:var(--text-secondary);margin-bottom:8px">${pm.totalExpenses === mt.totalExpenses ? 'Same as last month' : formatINR(Math.abs(mt.totalExpenses - pm.totalExpenses)) + (mt.totalExpenses > pm.totalExpenses ? ' more' : ' less') + ' than last month'}</div>` : '')
+        + `<div style="font-weight:800;font-size:.84rem;margin:10px 0 8px">By category</div>` + (rows.length ? rows.map(r => bar(r.n, r.v, mt.totalExpenses)).join('') : '<p style="font-size:.82rem;color:var(--text-muted)">No expenses yet.</p>')
+        + (top.length ? `<div style="font-weight:800;font-size:.84rem;margin:12px 0 4px">Biggest expenses</div>` + top.map(e => row(escapeHtml(e.note || 'Expense'), '−' + formatINR(e.amount))).join('') : '') + btn('See transactions', "switchMainTab('txns')");
+    } else if (kind === 'saved') {
+      const fl = (appState.funds || []).map(f => ({ n: f.name, v: (f.history || []).filter(x => x.month === ym).reduce((s, x) => s + (x.type === 'add' ? Number(x.amount) : -Number(x.amount)), 0) })).filter(r => r.v !== 0);
+      body = head('Saved in funds & salary') + `<div style="font-size:2rem;font-weight:800;color:var(--accent)">${formatINR(mt.totalSavedInFunds)}</div><div style="font-size:.78rem;color:var(--text-secondary);margin-bottom:8px">This month only. It is not counted as an expense.</div>`
+        + row('Added to funds (net)', formatINR(mt.netFundsThisMonth)) + row('Salary savings (net)', formatINR(mt.salarySavings))
+        + (fl.length ? `<div style="font-weight:800;font-size:.84rem;margin:12px 0 4px">Funds this month</div>` + fl.map(r => row(escapeHtml(r.n), (r.v > 0 ? '+' : '−') + formatINR(Math.abs(r.v)))).join('') : '') + btn('Open Funds', "switchMainTab('funds')");
+    } else if (kind === 'cash') {
+      const now = new Date(), cur = ym === todayStr().slice(0, 7), dim = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0).getDate(), left = dim - now.getDate() + 1;
+      body = head('Unspent cash') + `<div style="font-size:2rem;font-weight:800;color:${mt.unspentCash < 0 ? 'var(--danger)' : 'inherit'}">${formatINR(mt.unspentCash)}</div><div style="font-size:.78rem;color:var(--text-secondary);margin-bottom:8px">Money you can still spend this month.</div>`
+        + row('Income', formatINR(mt.income)) + row('− Total spent', formatINR(mt.totalExpenses)) + row('− Saved in funds &amp; salary', formatINR(mt.totalSavedInFunds)) + row('= Unspent cash', formatINR(mt.unspentCash), true)
+        + (cur && mt.unspentCash > 0 ? row(`Daily limit (${left} day${left === 1 ? '' : 's'} left)`, formatINR(mt.unspentCash / left)) : '') + btn('Add an expense', 'openQuickExpenseModal()');
+    } else {
+      const pct = mt.targetAmt > 0 ? Math.max(0, Math.min(100, Math.round(mt.netActualSaving / mt.targetAmt * 100))) : 0, diff = mt.netActualSaving - mt.targetAmt;
+      body = head('Net actual saving') + `<div style="font-size:2rem;font-weight:800;color:${mt.netActualSaving < 0 ? 'var(--danger)' : 'var(--success)'}">${formatINR(mt.netActualSaving)}</div><div style="font-size:.78rem;color:var(--text-secondary);margin-bottom:8px">Income − total spent (${mt.actualSavingPct}% of income)</div>`
+        + row('Target saving', `${formatINR(mt.targetAmt)} (${mt.targetPct}%)`) + `<div style="height:8px;border-radius:8px;background:var(--bg-card-alt);margin:12px 0 6px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--success)"></div></div><div style="font-size:.78rem;color:var(--text-secondary)">${mt.targetAmt > 0 ? pct + '% of target reached' : 'No target set'}</div>`
+        + `<div style="font-size:.84rem;margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--accent-soft)">${mt.targetAmt <= 0 ? 'Set a target saving % from the income window.' : diff >= 0 ? `You are ${formatINR(diff)} above your target.` : `You are ${formatINR(-diff)} below your target. Cut spending or raise income to reach it.`}</div>` + btn('Edit income and target', 'openIncomeModal()');
+    }
+    openModal(body);
+  };
+
+
+  /* ==========================================================================
+     [SHOPPING] alag daily-use list, budget par asar sirf "Add to budget" se
+     ========================================================================== */
+  const openShoppingModal = () => { renderShop(); switchMainTab('shop'); window.scrollTo(0, 0); };
+  const shopCatInfo = () => {
+    const el = document.getElementById('shopCatInfo'); if (!el) return; const m = getCurrentMonthData(), c = m.categories.find(x => x.id === $v('shCat')), bought = (appState.shopping || []).filter(x => x.done).reduce((s, x) => s + Number(x.price || 0), 0);
+    if (!c) { el.textContent = ''; return; } const sp = m.expenses.filter(e => e.catId === c.id).reduce((s, e) => s + Number(e.amount), 0), lim = Number(c.limit) || 0;
+    el.innerHTML = lim ? `${escapeHtml(c.name)}: limit ${formatINR(lim)}, spent ${formatINR(sp)}, remaining ${formatINR(lim - sp)}.<br><strong style="color:${lim - sp - bought < 0 ? 'var(--danger)' : 'var(--success)'}">After adding this list: ${lim - sp - bought < 0 ? formatINR(sp + bought - lim) + ' over the limit' : formatINR(lim - sp - bought) + ' left'}</strong>` : `${escapeHtml(c.name)} has no limit set.`;
+  };
+  const renderShop = () => {
+    const el = document.getElementById('tab-shop'); if (!el) return; const l = appState.shopping || [], todo = l.filter(x => !x.done), done = l.filter(x => x.done), sum = (arr) => arr.reduce((s, x) => s + Number(x.price || 0), 0);
+    const item = (x) => `<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:6px"><input type="checkbox" ${x.done ? 'checked' : ''} onchange="toggleShop('${x.id}')" style="width:20px;height:20px"><div style="flex:1;min-width:0;${x.done ? 'text-decoration:line-through;opacity:.6' : ''}"><div style="font-weight:700;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(x.name)}</div></div><strong style="${x.done ? 'opacity:.6' : ''}">${x.price ? formatINR(x.price) : '-'}</strong><button class="btn-secondary" style="padding:4px 9px;font-size:.7rem" onclick="delShop('${x.id}')">Delete</button></div>`;
+    el.innerHTML = `<div class="page-title" style="display:flex;align-items:center;gap:10px"><button class="menu-btn" onclick="goBack()" aria-label="Back">←</button>Shopping list</div>
+      <div style="font-size:.78rem;color:var(--text-secondary);padding:0 4px">This list does not change your budget until you add bought items to it.</div>
+      <div class="card" style="padding:12px;display:flex;gap:8px"><input id="shName" class="form-input" style="flex:1.6" placeholder="Item" onkeydown="if(event.key==='Enter')addShop()"><input id="shPrice" type="number" inputmode="decimal" min="0" class="form-input" style="flex:1" placeholder="Price"><button class="btn-primary" style="padding:0 16px;justify-content:center" onclick="addShop()">Add</button></div>
+      <div class="card" style="padding:12px 14px;display:flex;justify-content:space-between;font-size:.84rem"><span>Planned <strong>${formatINR(sum(todo) + sum(done))}</strong> (${l.length} items)</span><span>Bought <strong>${formatINR(sum(done))}</strong> (${done.length})</span></div>
+      <div style="font-weight:800;font-size:.84rem;margin:6px 2px">To buy (${todo.length})</div>${todo.length ? todo.map(item).join('') : '<div class="empty-state">Nothing to buy. Add an item above.</div>'}
+      ${done.length ? `<div style="font-weight:800;font-size:.84rem;margin:10px 2px 6px">Bought (${done.length})</div>${done.map(item).join('')}
+      <div class="card" style="padding:14px"><div style="font-weight:800;font-size:.9rem;margin-bottom:8px">Bought items: ${formatINR(sum(done))}</div><div class="form-group"><label class="form-label">Add to which category?</label><select id="shCat" class="form-select" onchange="shopCatInfo()">${catOptions()}</select></div><div id="shopCatInfo" style="font-size:.78rem;color:var(--text-secondary);margin-bottom:10px"></div>
+        <button class="btn-primary" style="justify-content:center;padding:12px;width:100%" onclick="shopToExpense(true)">Add to budget</button><button class="btn-secondary" style="justify-content:center;padding:12px;width:100%;margin-top:8px" onclick="shopToExpense(false)">Don't add, just clear</button></div>` : ''}`;
+    shopCatInfo();
+  };
+  const addShop = () => { const n = $v('shName').trim(); if (!n) { showToast('Type an item name'); return; } (appState.shopping = appState.shopping || []).push({ id: 'sh_' + Date.now(), name: n, price: Number($v('shPrice')) || 0, done: false }); saveState(); renderShop(); const f = document.getElementById('shName'); if (f) f.focus(); };
+  const toggleShop = (id) => { const x = appState.shopping.find(i => i.id === id); if (!x) return; x.done = !x.done; saveState(); renderShop(); };
+  const delShop = (id) => { snap(); appState.shopping = appState.shopping.filter(i => i.id !== id); saveState(); renderShop(); showUndo('Item removed'); };
+  const shopToExpense = (addBudget) => {
+    const done = (appState.shopping || []).filter(x => x.done); if (!done.length) return; const sum = done.reduce((s, x) => s + Number(x.price || 0), 0);
+    if (addBudget && !(sum > 0)) { showToast('Add prices to the bought items first'); return; }
+    snap(); if (addBudget) placeExpense({ id: 'exp_' + Date.now(), catId: $v('shCat'), amount: sum, note: 'Shopping: ' + done.map(x => x.name).join(', ').slice(0, 60), date: todayStr(), time: nowHM() }, null);
+    appState.shopping = appState.shopping.filter(x => !x.done); saveState(); renderAll(); renderShop(); showUndo(addBudget ? 'Added to budget ' + money(sum) : 'Bought items cleared');
+  };
 
   /* ---- [BACK BUTTON] ---- */
   let modalPushed = false, ignorePop = 0, navSilent = false;
@@ -2967,6 +3037,16 @@ ${n.body}`;
   };
   const delExtraIncome = (id) => { snap(); const m = getCurrentMonthData(), x = (m.extraIncome || []).find(y => y.id === id); if (!x) return; (m.incomeLog = m.incomeLog || []).unshift({ text: `Extra income deleted ${money(x.amount)} · ${x.note}`, ts: Date.now() }); m.extraIncome = m.extraIncome.filter(y => y.id !== id); saveState(); renderAll(); openIncomeModal(); showUndo('Income deleted'); };
 
+  const HELP = [["Getting started", "How do I set my income?", "Tap the income amount or the Edit button on the dashboard. Enter your monthly salary and your target saving %. You can also add extra income (bonus, freelance) in the same window."], ["Getting started", "What do the four dashboard cards mean?", "Total Spent is everything you spent this month. Saved in Funds & Salary is money you put aside (not an expense). Unspent Cash is Income − Spent − Saved. Net Actual Saving is Income − Spent. Tap any card to see how it is calculated."], ["Getting started", "How do I add an expense?", "Tap the + button on the dashboard (or long-press the app icon and choose Add expense). Pick a category, enter the amount, item name, optional notes and the payment method."], ["Budget", "How do I set a category limit?", "Tap a category, then Edit category, and set the limit. The bar fills as you spend and Alerts warn you when you go over."], ["Budget", "What is the category page?", "Tapping a category opens its page: spent vs limit, a day-by-day chart and every entry grouped by date. You can edit or delete entries there."], ["Budget", "Can an expense repeat every month?", "Yes. Open the menu and choose Recurring expenses. Add the title, amount, category and day of the month. It is added automatically."], ["Budget", "Where are the graphs?", "Menu → Insights shows spending by category, income vs expense, a comparison with last month and spending by payment method."], ["Funds", "How do I create a fund and add money?", "Go to Funds and tap + Fund. Tap a fund to open its sheet, then use Add money or Withdraw. Set a target and a target date to see On track or Behind."], ["Funds", "What do hold and drag do?", "Hold a fund card to open quick actions (Add money, Withdraw, Edit, Delete). Drag the handle on the right of a card to change the order."], ["Funds", "How does Salary Savings work?", "It is a ledger. Add puts money in, Spent takes it out, and the balance is Add − Spent. Entries cannot be edited. If you made a mistake, delete the entry and add it again. Deleted entries are noted in the history."], ["Plans", "How do I use upcoming plans?", "Add a plan with an amount, date and category. Tick it when it is done. Plans are shown as Pending, Completed or All. Tap a plan for its details, to add an extra charge (like a late fee) and to see its history."], ["Plans", "What happens when I mark a plan as done?", "If the plan has a category, the amount is added to that category as an expense. Unmarking removes it again."], ["Loans", "How do loans work?", "Use Lent when you gave money and Borrowed when you took money. Add a due date, record payments, and filter by Active, Completed or All. Overdue loans appear first and in Alerts."], ["Transactions", "How do I find a transaction?", "Open Transactions, use the search box or the Filter button (period, type, category, payment). Entries are grouped by day. Tap one to see its details and history."], ["Transactions", "How do I edit or delete a transaction?", "Transaction details are view-only. Use the Open button to go to the place where it can be changed: the category page for expenses, the fund for fund entries, Loans for loan entries, or the Income window for income."], ["Notes and shopping", "How do notes work?", "Tap + New Note or any note to open the editor. It saves automatically. Use the pin icon to keep a note at the top."], ["Notes and shopping", "Does the shopping list change my budget?", "No. It is a separate list for daily use. Tick items as bought, then choose Add to budget (pick a category) or Don't add, just clear."], ["Backup and security", "How do I back up my data?", "Settings → Backup & Restore. Save the file to Google Drive or Gmail. Do this regularly because clearing browser data removes the app data. You can choose the reminder interval in Settings."], ["Backup and security", "How do I restore a backup?", "Settings → Restore, then choose your backup file. Invalid files are rejected and nothing is changed."], ["Backup and security", "Where is my data stored?", "Only on this phone, inside the app. Nothing is sent to any server. The app works offline."], ["Backup and security", "I forgot my PIN. What now?", "On the lock screen tap Forgot PIN and enter your recovery code to set a new PIN. If you do not have the code, you can back up and erase the data, then restore the backup."], ["Backup and security", "What does the Update ready bar mean?", "A new version is installed. Tap the bar to refresh and start using it. After an update the app shows what is new once."], ["Backup and security", "How do I change the text size?", "Settings → Display & storage → Text size."]];
+  const helpRender = (q) => {
+    q = (q || '').trim().toLowerCase(); const list = HELP.filter(x => !q || (x[1] + ' ' + x[2]).toLowerCase().includes(q)); let g = '';
+    document.getElementById('helpList').innerHTML = list.length ? list.map(x => (x[0] !== g ? (g = x[0], `<div class="faq-group">${x[0]}</div>`) : '') + `<details class="faq-item"><summary>${escapeHtml(x[1])}</summary><p>${escapeHtml(x[2])}</p></details>`).join('') : '<p style="font-size:.85rem;color:var(--text-secondary);padding:10px 0">No answers found.</p>';
+  };
+  const openHelp = () => { openModal(head('Help &amp; FAQ') + `<input class="form-input" placeholder="Search help" oninput="helpRender(this.value)" style="margin-bottom:6px"><div id="helpList" style="max-height:62vh;overflow-y:auto"></div>`); helpRender(''); };
+  let wnShown = false;
+  const showWhatsNew = () => { if (wnShown) return; wnShown = true; if (appState.seenVersion === APP_VERSION) return; const first = appState.setupDone === false; appState.seenVersion = APP_VERSION; saveState(); if (first) return;
+    openModal(head('Updated to v' + APP_VERSION) + `<div style="font-weight:800;font-size:.88rem;margin-bottom:6px">What's new</div><ul class="whatsnew" style="font-size:.86rem;line-height:1.7;margin-bottom:14px">${WHATS_NEW.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul><button class="btn-primary" style="justify-content:center;padding:12px;width:100%" onclick="closeModal()">Got it</button>`); };
+
   window.onload = () => {
     startIconify();
     loadState();
@@ -2975,9 +3055,13 @@ ${n.body}`;
     initBackupDefaults();
     buildKeypad();
     renderAll();
-    if (appState.pin) showLock(); else runPendingAction();
+    if (appState.pin) showLock(); else { runPendingAction(); setTimeout(showWhatsNew, 1500); }
     if (!appState.pin) setTimeout(() => { if (appState.setupDone === false) openSetupModal(); else renderBell(); }, 1500);
     (() => { const sp = document.getElementById('splash'); if (!sp) return; if (appState.noAnim) { sp.remove(); return; } setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 400); }, 1250); })();
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
-    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      const hadCtl = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtl) document.getElementById('updateBar').style.display = 'block'; });
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
   };
