@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.immoody7.twa",
+        "sha256_cert_fingerprints": ["25:9C:99:F0:F4:A1:3B:EC:66:12:80:D6:DB:63:94:DA:1A:0A:52:83:D0:B1:A9:18:2F:25:49:0D:35:7E:5B:77"]
+      }
+    }]
