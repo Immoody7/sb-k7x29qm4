@@ -1,6 +1,7 @@
 const STORAGE_KEY = 'smart_budget_india_v2';
-  const APP_VERSION = '7.1';
-  const WHATS_NEW = ['Search icon is now in the header', 'History is read-only in Funds, Salary Savings, Loans and Extra income. Fix mistakes with Reverse entry', 'Notes can have a Remind me date and time; due notes show in Alerts'];
+  const APP_VERSION = '7.3';
+  const isNativeApp = () => !!(window.Capacitor && typeof Capacitor.isNativePlatform === 'function' && Capacitor.isNativePlatform());
+  const WHATS_NEW = ['Notes: hold a note for a menu, select several notes, then pin, share or delete them', 'Tap the month at the top to open a calendar and jump to any month or day', 'Income window: switch automatic monthly salary on or off'];
 
   const formatINR = (num) => {
     const val = Math.round(Number(num) || 0);
@@ -163,7 +164,7 @@ const STORAGE_KEY = 'smart_budget_india_v2';
       const existingKeys = Object.keys(appState.months).sort();
       const templateMonth = existingKeys.length ? appState.months[existingKeys[existingKeys.length - 1]] : null;
       appState.months[ym] = {
-        income: templateMonth ? templateMonth.income : 50000,
+        income: templateMonth ? (appState.autoSalary === false ? 0 : templateMonth.income) : 50000,
         targetSavingPct: templateMonth ? templateMonth.targetSavingPct : 20,
         salarySavings: 0,
         categories: templateMonth
@@ -868,7 +869,8 @@ const STORAGE_KEY = 'smart_budget_india_v2';
       return;
     }
 
-    container.innerHTML = notes.map(n => `<div class="history-item" onclick="openNotePage('${n.id}')" style="flex-direction:column;align-items:flex-start;gap:4px;cursor:pointer;border:${n.pinned ? '1px solid var(--accent)' : '1px solid transparent'}"><div style="display:flex;justify-content:space-between;width:100%;gap:8px"><div style="font-weight:800;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(n.title || 'Untitled')}</div>${n.pinned ? '<span style="font-size:.9rem">📌</span>' : ''}</div><div style="font-size:.8rem;color:var(--text-secondary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line">${escapeHtml((n.body || '').slice(0, 160))}</div><div style="font-size:.7rem;color:var(--text-muted)">${fmtTs(n.updated || tsFromId(n.id) || Date.now())}${n.remindAt ? ' · Remind ' + new Date(n.remindAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true }) : ''}</div></div>`).join('');
+    renderNoteSelBar();
+    container.innerHTML = notes.map(n => { const sel = noteSel.has(n.id); return `<div class="history-item note-card" data-id="${n.id}" onclick="noteTap('${n.id}')" style="flex-direction:column;align-items:flex-start;gap:4px;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border:${sel ? '2px solid var(--accent)' : n.pinned ? '1px solid var(--accent)' : '1px solid transparent'};${sel ? 'background:var(--accent-soft)' : ''}"><div style="display:flex;justify-content:space-between;width:100%;gap:8px"><div style="font-weight:800;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${noteSelMode ? `<span style="display:inline-block;width:18px;height:18px;border-radius:50%;border:2px solid var(--accent);margin-right:8px;vertical-align:-3px;${sel ? 'background:var(--accent)' : ''}"></span>` : ''}${escapeHtml(n.title || 'Untitled')}</div>${n.pinned ? '<span style="font-size:.9rem">📌</span>' : ''}</div><div style="font-size:.8rem;color:var(--text-secondary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line">${escapeHtml((n.body || '').slice(0, 160))}</div><div style="font-size:.7rem;color:var(--text-muted)">${fmtTs(n.updated || tsFromId(n.id) || Date.now())}${n.remindAt ? ' · Remind ' + new Date(n.remindAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true }) : ''}</div></div>`; }).join('');
   };
 
   const renderAll = () => {
@@ -881,6 +883,8 @@ const STORAGE_KEY = 'smart_budget_india_v2';
     renderCatPage();
     if (activeTabName() === 'shop') renderShop();
     initFundGestures();
+    initNoteGestures();
+    scheduleNativeReminders();
     renderDashUdhaar();
     renderBell();
     renderNotesTab();
@@ -1856,6 +1860,7 @@ ${n.body}`;
 
   const shareBackupFile = async () => {
     const file = new File([JSON.stringify(appState, null, 2)], getSanitizedBackupFileName(), { type: 'application/json' });
+    if (isNativeApp()) { const url = URL.createObjectURL(file), el = document.createElement('a'); el.href = url; el.download = file.name; document.body.appendChild(el); el.click(); el.remove(); markBackupDone(); return; }
     try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); markBackupDone(); } else showToast('Sharing is not supported on this phone. Use the Backup button.'); }
     catch (e) { if (e.name !== 'AbortError') showToast('Could not share'); }
   };
@@ -2459,6 +2464,7 @@ ${n.body}`;
     document.documentElement.style.fontSize = { sm: '90%', md: '100%', lg: '112%' }[appState.textSize || 'md'];
     document.getElementById('textSizeBtns').innerHTML = [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']].map(([k, t]) => `<button class="btn-secondary" style="flex:1;justify-content:center;padding:9px;${(appState.textSize || 'md') === k ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="setTextSize('${k}')">${t}</button>`).join('');
     document.getElementById('backupDaysBtns').innerHTML = [[7, '7 days'], [14, '14 days'], [30, '30 days'], [0, 'Off']].map(([n, t]) => `<button class="btn-secondary" style="flex:1;justify-content:center;padding:8px 4px;font-size:.78rem;${backupDays() === n ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="setBackupDays(${n})">${t}</button>`).join('');
+    const nb = document.getElementById('nativeRemBox'); if (nb) { nb.style.display = isNativeApp() ? 'flex' : 'none'; nb.innerHTML = isNativeApp() ? `<div style="font-size:.78rem;color:var(--text-secondary)">Phone reminders (notes, plans, loans) work offline, even when the app is closed.</div><button class="btn-secondary" style="justify-content:center;padding:9px" onclick="toggleNativeRem()">Phone reminders: ${appState.nativeRem === false ? 'Off (turn on)' : 'On (turn off)'}</button><button class="btn-secondary" style="justify-content:center;padding:9px" onclick="toggleRemDetails()">Show details in notifications: ${appState.remDetails === true ? 'On (turn off)' : 'Off (turn on)'}</button>` : ''; }
     const si = getStorageInfo(); document.getElementById('storageLine').textContent = `Storage: ${si.kb} KB used of about 5 MB (${si.pct}%)`;
     v.textContent = 'v' + APP_VERSION;
     document.getElementById('whatsNewList').innerHTML = WHATS_NEW.map(x => `<li>${escapeHtml(x)}</li>`).join('');
@@ -2887,7 +2893,7 @@ ${n.body}`;
   const hideModalNow = () => { if (window._rrc) { window._rrc = false; renderAll(); } const b = document.getElementById('modalBackdrop'); b.classList.remove('open'); clearTimeout(window._mTimer); window._mTimer = setTimeout(() => { b.style.display = 'none'; }, 260); };
   let exiting = false;
   const hideExitDlg = () => document.getElementById('exitDlg').classList.remove('open');
-  const exitApp = () => { exiting = true; hideExitDlg(); try { window.close(); } catch (e) {} history.back(); setTimeout(() => history.back(), 120); };
+  const exitApp = () => { exiting = true; hideExitDlg(); if (isNativeApp() && Capacitor.Plugins.App) { Capacitor.Plugins.App.exitApp(); return; } try { window.close(); } catch (e) {} history.back(); setTimeout(() => history.back(), 120); };
   window.addEventListener('popstate', () => {
     if (exiting) return;
     if (ignorePop > 0) { ignorePop--; return; }
@@ -3014,6 +3020,7 @@ ${n.body}`;
     openModal(head('Income · ' + formatMonthDisplay(appState.selectedMonth)) + `<div style="font-size:2rem;font-weight:800">${formatINR(sal + exTotal)}</div><div style="font-size:.78rem;color:var(--text-secondary);margin-bottom:10px">Salary ${formatINR(sal)} + Extra ${formatINR(exTotal)}</div>
       <div class="form-group"><label class="form-label">Monthly salary (₹)</label><input type="number" inputmode="decimal" id="inpIncome" class="form-input" value="${sal}" min="0"></div>
       <div class="form-group"><label class="form-label">Target saving (%)</label><input type="number" inputmode="decimal" id="inpTargetPct" class="form-input" value="${m.targetSavingPct}" min="0" max="100"></div>
+      <button class="btn-secondary" style="justify-content:center;padding:10px;width:100%;margin-bottom:6px" onclick="toggleAutoSalary()">Add salary automatically every month: ${appState.autoSalary === false ? 'Off (turn on)' : 'On (turn off)'}</button><div style="font-size:.72rem;color:var(--text-muted);margin-bottom:10px">On: a new month starts with last month's salary. Off: a new month starts at ₹0 and you enter it yourself.</div>
       <button class="btn-primary" style="justify-content:center;padding:12px;width:100%" onclick="saveIncomeAll()">Save salary and target</button>
       <div style="font-weight:800;font-size:.86rem;margin:18px 0 6px">Extra income</div>
       ${ex.length ? ex.map(x => `<div onclick="openExtraEntry('${x.id}')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-color);cursor:pointer;${x.reversed ? 'opacity:.55' : ''}"><div style="min-width:0"><div style="font-weight:700;font-size:.86rem">${x.reversed ? '<span class="fund-tag">Reversed</span> ' : ''}${x.revOf ? '<span class="fund-tag">Reversal</span> ' : ''}${escapeHtml(x.note)}</div><div style="font-size:.72rem;color:var(--text-muted)">${x.date || ''}${x.time ? ' · ' + fmt12(x.time) : ''}</div></div><div style="display:flex;align-items:center;gap:8px"><strong style="color:${x.amount < 0 ? 'var(--danger)' : 'var(--success)'}">${x.amount < 0 ? '−' : '+'}${money(Math.abs(x.amount))}</strong></div></div>`).join('') : '<div style="font-size:.8rem;color:var(--text-muted);padding:4px 0">No extra income this month.</div>'}
@@ -3038,7 +3045,7 @@ ${n.body}`;
   };
   const delExtraIncome = (id) => { snap(); const m = getCurrentMonthData(), x = (m.extraIncome || []).find(y => y.id === id); if (!x) return; (m.incomeLog = m.incomeLog || []).unshift({ text: `Extra income deleted ${money(x.amount)} · ${x.note}`, ts: Date.now() }); m.extraIncome = m.extraIncome.filter(y => y.id !== id); saveState(); renderAll(); openIncomeModal(); showUndo('Income deleted'); };
 
-  const HELP = [["Getting started", "How do I set my income?", "Tap the income amount or the Edit button on the dashboard. Enter your monthly salary and your target saving %. You can also add extra income (bonus, freelance) in the same window."], ["Getting started", "What do the four dashboard cards mean?", "Total Spent is everything you spent this month. Saved in Funds & Salary is money you put aside (not an expense). Unspent Cash is Income − Spent − Saved. Net Actual Saving is Income − Spent. Tap any card to see how it is calculated."], ["Getting started", "How do I add an expense?", "Tap the + button on the dashboard (or long-press the app icon and choose Add expense). Pick a category, enter the amount, item name, optional notes and the payment method."], ["Budget", "How do I set a category limit?", "Tap a category, then Edit category, and set the limit. The bar fills as you spend and Alerts warn you when you go over."], ["Budget", "What is the category page?", "Tapping a category opens its page: spent vs limit, a day-by-day chart and every entry grouped by date. You can edit or delete entries there."], ["Budget", "Can an expense repeat every month?", "Yes. Open the menu and choose Recurring expenses. Add the title, amount, category and day of the month. It is added automatically."], ["Budget", "Where are the graphs?", "Menu → Insights shows spending by category, income vs expense, a comparison with last month and spending by payment method."], ["Funds", "How do I create a fund and add money?", "Go to Funds and tap + Fund. Tap a fund to open its sheet, then use Add money or Withdraw. Set a target and a target date to see On track or Behind."], ["Funds", "What do hold and drag do?", "Hold a fund card to open quick actions (Add money, Withdraw, Edit, Delete). Drag the handle on the right of a card to change the order."], ["Funds", "How does Salary Savings work?", "It is a ledger. Add puts money in, Spent takes it out, and the balance is Add − Spent. Entries cannot be edited or deleted. To fix a mistake, tap the entry and choose Reverse, then add the correct one."], ["Plans", "How do I use upcoming plans?", "Add a plan with an amount, date and category. Tick it when it is done. Plans are shown as Pending, Completed or All. Tap a plan for its details, to add an extra charge (like a late fee) and to see its history."], ["Plans", "What happens when I mark a plan as done?", "If the plan has a category, the amount is added to that category as an expense. Unmarking removes it again."], ["Loans", "How do loans work?", "Use Lent when you gave money and Borrowed when you took money. Add a due date, record payments, and filter by Active, Completed or All. Overdue loans appear first and in Alerts."], ["Transactions", "How do I find a transaction?", "Open Transactions, use the search box or the Filter button (period, type, category, payment). Entries are grouped by day. Tap one to see its details and history."], ["Transactions", "How do I edit or delete a transaction?", "Transaction details are view-only. Use the Open button to go to the place where it can be changed: the category page for expenses, the fund for fund entries, Loans for loan entries, or the Income window for income."], ["Notes and shopping", "How do notes work?", "Tap + New Note or any note to open the editor. It saves automatically. Use the pin icon to keep a note at the top."], ["Notes and shopping", "Does the shopping list change my budget?", "No. It is a separate list for daily use. Tick items as bought, then choose Add to budget (pick a category) or Don't add, just clear."], ["Backup and security", "How do I back up my data?", "Settings → Backup & Restore. Save the file to Google Drive or Gmail. Do this regularly because clearing browser data removes the app data. You can choose the reminder interval in Settings."], ["Backup and security", "How do I restore a backup?", "Settings → Restore, then choose your backup file. Invalid files are rejected and nothing is changed."], ["Backup and security", "Where is my data stored?", "Only on this phone, inside the app. Nothing is sent to any server. The app works offline."], ["Backup and security", "I forgot my PIN. What now?", "On the lock screen tap Forgot PIN and enter your recovery code to set a new PIN. If you do not have the code, you can back up and erase the data, then restore the backup."], ["Backup and security", "What does the Update ready bar mean?", "A new version is installed. Tap the bar to refresh and start using it. After an update the app shows what is new once."], ["Backup and security", "How do I change the text size?", "Settings → Display & storage → Text size."], ["Backup and security", "Why can't I edit or delete history entries?", "Funds, Salary Savings, loan payments and extra income keep a permanent record, like a bank statement. To fix a mistake, tap the entry and choose Reverse. It adds an opposite entry and marks the original as Reversed, so the balance stays correct and the record stays complete."], ["Notes and shopping", "Can a note remind me?", "Yes. In a note, set Remind me with a date and time. When the time has passed and you open the app, the note appears in Alerts (the bell). Tap it to open the note."], ["Getting started", "Where is search?", "Tap the magnifier icon at the top of the screen."]];
+  const HELP = [["Getting started", "How do I set my income?", "Tap the income amount or the Edit button on the dashboard. Enter your monthly salary and your target saving %. You can also add extra income (bonus, freelance) in the same window."], ["Getting started", "What do the four dashboard cards mean?", "Total Spent is everything you spent this month. Saved in Funds & Salary is money you put aside (not an expense). Unspent Cash is Income − Spent − Saved. Net Actual Saving is Income − Spent. Tap any card to see how it is calculated."], ["Getting started", "How do I add an expense?", "Tap the + button on the dashboard (or long-press the app icon and choose Add expense). Pick a category, enter the amount, item name, optional notes and the payment method."], ["Budget", "How do I set a category limit?", "Tap a category, then Edit category, and set the limit. The bar fills as you spend and Alerts warn you when you go over."], ["Budget", "What is the category page?", "Tapping a category opens its page: spent vs limit, a day-by-day chart and every entry grouped by date. You can edit or delete entries there."], ["Budget", "Can an expense repeat every month?", "Yes. Open the menu and choose Recurring expenses. Add the title, amount, category and day of the month. It is added automatically."], ["Budget", "Where are the graphs?", "Menu → Insights shows spending by category, income vs expense, a comparison with last month and spending by payment method."], ["Funds", "How do I create a fund and add money?", "Go to Funds and tap + Fund. Tap a fund to open its sheet, then use Add money or Withdraw. Set a target and a target date to see On track or Behind."], ["Funds", "What do hold and drag do?", "Hold a fund card to open quick actions (Add money, Withdraw, Edit, Delete). Drag the handle on the right of a card to change the order."], ["Funds", "How does Salary Savings work?", "It is a ledger. Add puts money in, Spent takes it out, and the balance is Add − Spent. Entries cannot be edited or deleted. To fix a mistake, tap the entry and choose Reverse, then add the correct one."], ["Plans", "How do I use upcoming plans?", "Add a plan with an amount, date and category. Tick it when it is done. Plans are shown as Pending, Completed or All. Tap a plan for its details, to add an extra charge (like a late fee) and to see its history."], ["Plans", "What happens when I mark a plan as done?", "If the plan has a category, the amount is added to that category as an expense. Unmarking removes it again."], ["Loans", "How do loans work?", "Use Lent when you gave money and Borrowed when you took money. Add a due date, record payments, and filter by Active, Completed or All. Overdue loans appear first and in Alerts."], ["Transactions", "How do I find a transaction?", "Open Transactions, use the search box or the Filter button (period, type, category, payment). Entries are grouped by day. Tap one to see its details and history."], ["Transactions", "How do I edit or delete a transaction?", "Transaction details are view-only. Use the Open button to go to the place where it can be changed: the category page for expenses, the fund for fund entries, Loans for loan entries, or the Income window for income."], ["Notes and shopping", "How do notes work?", "Tap + New Note or any note to open the editor. It saves automatically. Use the pin icon to keep a note at the top."], ["Notes and shopping", "Does the shopping list change my budget?", "No. It is a separate list for daily use. Tick items as bought, then choose Add to budget (pick a category) or Don't add, just clear."], ["Backup and security", "How do I back up my data?", "Settings → Backup & Restore. Save the file to Google Drive or Gmail. Do this regularly because clearing browser data removes the app data. You can choose the reminder interval in Settings."], ["Backup and security", "How do I restore a backup?", "Settings → Restore, then choose your backup file. Invalid files are rejected and nothing is changed."], ["Backup and security", "Where is my data stored?", "Only on this phone, inside the app. Nothing is sent to any server. The app works offline."], ["Backup and security", "I forgot my PIN. What now?", "On the lock screen tap Forgot PIN and enter your recovery code to set a new PIN. If you do not have the code, you can back up and erase the data, then restore the backup."], ["Backup and security", "What does the Update ready bar mean?", "A new version is installed. Tap the bar to refresh and start using it. After an update the app shows what is new once."], ["Backup and security", "How do I change the text size?", "Settings → Display & storage → Text size."], ["Backup and security", "Why can't I edit or delete history entries?", "Funds, Salary Savings, loan payments and extra income keep a permanent record, like a bank statement. To fix a mistake, tap the entry and choose Reverse. It adds an opposite entry and marks the original as Reversed, so the balance stays correct and the record stays complete."], ["Notes and shopping", "Can a note remind me?", "Yes. In a note, set Remind me with a date and time. When the time has passed and you open the app, the note appears in Alerts (the bell). Tap it to open the note."], ["Getting started", "Where is search?", "Tap the magnifier icon at the top of the screen."], ["Notes and shopping", "How do I select, share or delete several notes?", "Hold a note to open its menu (Open, Pin, Select, Share, Delete). Choose Select, then tap more notes. The bar at the top lets you Pin, Share or Delete all selected notes."], ["Getting started", "How do I jump to another month or day?", "Tap the month name at the top. Pick a month to switch to it, or tap a day to see that day's transactions. A dot marks days with transactions."], ["Getting started", "What does Add salary automatically do?", "In the Income window you can turn it on or off. When on, a new month starts with last month's salary. When off, a new month starts at ₹0 and you enter the salary yourself."]];
   const helpRender = (q) => {
     q = (q || '').trim().toLowerCase(); const list = HELP.filter(x => !q || (x[1] + ' ' + x[2]).toLowerCase().includes(q)); let g = '';
     document.getElementById('helpList').innerHTML = list.length ? list.map(x => (x[0] !== g ? (g = x[0], `<div class="faq-group">${x[0]}</div>`) : '') + `<details class="faq-item"><summary>${escapeHtml(x[1])}</summary><p>${escapeHtml(x[2])}</p></details>`).join('') : '<p style="font-size:.85rem;color:var(--text-secondary);padding:10px 0">No answers found.</p>';
@@ -3098,6 +3105,98 @@ ${n.body}`;
     saveState(); renderAll(); openIncomeModal(); showToast('Entry reversed');
   };
 
+
+  /* ==========================================================================
+     [ANDROID APP] Capacitor: downloads -> Share sheet, back button, phone reminders
+     ========================================================================== */
+  if (isNativeApp()) {
+    const P = Capacitor.Plugins, origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      if (this.download && /^blob:/.test(this.href) && P.Filesystem && P.Share) {
+        const name = this.download;
+        fetch(this.href).then(r => r.blob()).then(b => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1]); fr.readAsDataURL(b); }))
+          .then(async (data) => { const f = await P.Filesystem.writeFile({ path: name, data, directory: 'CACHE' }); await P.Share.share({ title: name, url: f.uri, dialogTitle: 'Save or share' }); })
+          .catch(() => showToast('Could not save the file'));
+        return;
+      }
+      return origClick.apply(this, arguments);
+    };
+    if (P.App) P.App.addListener('backButton', () => { history.back(); });
+  }
+  const hashId = (s) => { let x = 0; for (let i = 0; i < s.length; i++) x = (x * 31 + s.charCodeAt(i)) | 0; return Math.abs(x) % 2000000000 + 1; };
+  const nativeReminderList = () => {
+    const out = [], now = Date.now(), det = appState.remDetails === true;
+    (appState.notes || []).forEach(n => { if (n.remindAt) { const t = new Date(n.remindAt).getTime(); if (t > now) out.push({ id: hashId('n' + n.id + n.remindAt), at: t, title: 'Note reminder', body: det ? (n.title || 'Untitled') : 'You have a note reminder' }); } });
+    allPlans().forEach(p => { if (!p.marked && p.date) { const t = new Date(p.date + 'T09:00:00').getTime(); if (t > now) out.push({ id: hashId('p' + p.id + p.date), at: t, title: 'Plan due today', body: det ? `${p.title} · ${money(p.amount)}` : 'A plan is due today' }); } });
+    (appState.udhaar || []).forEach(u => { if (u.due && udRem(u) > 0) { const t = new Date(u.due + 'T09:00:00').getTime(); if (t > now) out.push({ id: hashId('u' + u.id + u.due), at: t, title: u.type === 'lent' ? 'Money to receive today' : 'Payment due today', body: det ? `${u.person} · ${money(udRem(u))}` : 'A loan is due today' }); } });
+    return out.sort((p, q) => p.at - q.at).slice(0, 60);
+  };
+  let _remTimer = null;
+  const syncNativeReminders = async () => {
+    const LN = isNativeApp() && Capacitor.Plugins.LocalNotifications; if (!LN) return;
+    try {
+      let perm = await LN.checkPermissions(); if (perm.display !== 'granted') perm = await LN.requestPermissions(); if (perm.display !== 'granted') return;
+      const pend = await LN.getPending(); if (pend.notifications && pend.notifications.length) await LN.cancel({ notifications: pend.notifications.map(n => ({ id: n.id })) });
+      const list = nativeReminderList(); if (list.length) await LN.schedule({ notifications: list.map(x => ({ id: x.id, title: x.title, body: x.body, schedule: { at: new Date(x.at), allowWhileIdle: true } })) });
+    } catch (e) {}
+  };
+  const scheduleNativeReminders = () => { if (!isNativeApp() || appState.nativeRem === false) return; clearTimeout(_remTimer); _remTimer = setTimeout(syncNativeReminders, 900); };
+  const toggleNativeRem = () => { appState.nativeRem = appState.nativeRem === false; saveState(); if (appState.nativeRem === false) { try { Capacitor.Plugins.LocalNotifications.getPending().then(p => p.notifications.length && Capacitor.Plugins.LocalNotifications.cancel({ notifications: p.notifications.map(n => ({ id: n.id })) })); } catch (e) {} } else syncNativeReminders(); renderAll(); };
+  const toggleRemDetails = () => { appState.remDetails = appState.remDetails !== true; saveState(); syncNativeReminders(); renderAll(); };
+
+
+  /* ==========================================================================
+     [NOTES] hold menu, multi-select, share
+     ========================================================================== */
+  let noteSel = new Set(), noteSelMode = false, nlp = false;
+  const noteById = (id) => (appState.notes || []).find(n => n.id === id);
+  const noteTap = (id) => { if (nlp) { nlp = false; return; } if (noteSelMode) toggleNoteSel(id); else openNotePage(id); };
+  const toggleNoteSel = (id) => { if (noteSel.has(id)) noteSel.delete(id); else noteSel.add(id); if (!noteSel.size) noteSelMode = false; renderNotesTab(); };
+  const exitNoteSel = () => { noteSel.clear(); noteSelMode = false; renderNotesTab(); };
+  const selectAllNotes = () => { (appState.notes || []).forEach(n => noteSel.add(n.id)); noteSelMode = true; renderNotesTab(); };
+  const renderNoteSelBar = () => { const b = document.getElementById('noteSelBar'); if (!b) return; if (!noteSelMode) { b.style.display = 'none'; return; }
+    const bt = (t, fn) => `<button class="btn-secondary" style="padding:6px 10px;font-size:.74rem" onclick="${fn}">${t}</button>`;
+    b.style.display = 'flex'; b.innerHTML = `<strong style="font-size:.82rem;margin-right:auto">${noteSel.size} selected</strong>${bt('All', 'selectAllNotes()')}${bt('Pin', 'pinSelectedNotes()')}${bt('Share', 'shareNotes([...noteSel])')}${bt('Delete', "askConfirm('Delete ' + noteSel.size + ' note(s)?','deleteNotes([...noteSel])')")}${bt('✕', 'exitNoteSel()')}`; };
+  const pinSelectedNotes = () => { const ns = [...noteSel].map(noteById).filter(Boolean), allPinned = ns.every(n => n.pinned); ns.forEach(n => { n.pinned = !allPinned; }); saveState(); exitNoteSel(); showToast(allPinned ? 'Unpinned' : 'Pinned'); };
+  const shareNotes = async (ids) => {
+    const ns = ids.map(noteById).filter(Boolean); if (!ns.length) return; const text = ns.map(n => (n.title ? n.title + '\n' : '') + (n.body || '')).join('\n\n----------\n\n');
+    try { if (isNativeApp() && Capacitor.Plugins.Share) { await Capacitor.Plugins.Share.share({ title: ns.length === 1 ? (ns[0].title || 'Note') : 'Notes', text }); }
+      else if (navigator.share) { await navigator.share({ title: ns.length === 1 ? (ns[0].title || 'Note') : 'Notes', text }); }
+      else { await navigator.clipboard.writeText(text); showToast('Copied to clipboard'); } } catch (e) { if (e && e.name !== 'AbortError') showToast('Could not share'); }
+  };
+  const deleteNotes = (ids) => { snap(); const s = new Set(ids); appState.notes = (appState.notes || []).filter(n => !s.has(n.id)); saveState(); noteSel.clear(); noteSelMode = false; renderNotesTab(); showUndo(ids.length === 1 ? 'Note deleted' : ids.length + ' notes deleted'); };
+  const openNoteActions = (id) => { const n = noteById(id); if (!n) return;
+    const b = (t, k) => `<button class="btn-secondary" style="width:100%;justify-content:center;padding:13px;margin-bottom:8px" onclick="closeModal();setTimeout(()=>noteAct('${k}','${id}'),140)">${t}</button>`;
+    openModal(head(escapeHtml(n.title || 'Untitled')) + b('Open', 'open') + b(n.pinned ? 'Unpin' : 'Pin to top', 'pin') + b('Select', 'select') + b('Share', 'share') + b('Delete', 'del')); };
+  const noteAct = (k, id) => { const n = noteById(id); if (!n) return;
+    if (k === 'open') openNotePage(id); else if (k === 'pin') { n.pinned = !n.pinned; saveState(); renderNotesTab(); } else if (k === 'select') { noteSelMode = true; noteSel = new Set([id]); renderNotesTab(); } else if (k === 'share') shareNotes([id]); else askConfirm('Delete this note?', `deleteNotes(['${id}'])`); };
+  const initNoteGestures = () => { const el = document.getElementById('notesListContainer'); if (!el || el._g) return; el._g = true; let timer = null, sx = 0, sy = 0, card = null;
+    el.addEventListener('pointerdown', (e) => { card = e.target.closest('.note-card'); if (!card) return; sx = e.clientX; sy = e.clientY; timer = setTimeout(() => { nlp = true; try { navigator.vibrate && navigator.vibrate(18); } catch (x) {} const id = card.dataset.id; if (noteSelMode) toggleNoteSel(id); else openNoteActions(id); setTimeout(() => { nlp = false; }, 600); }, 480); });
+    el.addEventListener('pointermove', (e) => { if (Math.abs(e.clientX - sx) > 9 || Math.abs(e.clientY - sy) > 9) clearTimeout(timer); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => el.addEventListener(t, () => clearTimeout(timer))); el.addEventListener('contextmenu', (e) => e.preventDefault()); };
+
+  /* ==========================================================================
+     [CALENDAR] header ke mahine par tap
+     ========================================================================== */
+  let calYM = null;
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const openCalendar = () => { calYM = appState.selectedMonth; openModal(head('Calendar') + '<div id="calBody"></div>'); calDraw(); };
+  const calYear = (dy) => { const [y, m] = calYM.split('-').map(Number); calYM = `${y + dy}-${pad2(m)}`; calDraw(); };
+  const calSetMonth = (i) => { const y = calYM.split('-')[0]; calYM = `${y}-${pad2(i + 1)}`; appState.selectedMonth = calYM; ensureMonthExists(calYM); saveState(); renderAll(); calDraw(); };
+  const calPickDay = (dt) => { txFilter = { period: 'custom', from: dt, to: dt, types: [], cats: [], pays: [] }; closeModal(); setTimeout(() => { switchMainTab('txns'); renderTxns(); }, 140); };
+  const calDraw = () => {
+    const el = document.getElementById('calBody'); if (!el) return; const [y, m] = calYM.split('-').map(Number), counts = {};
+    collectTxns('all').forEach(r => { if (r.date && r.title !== 'Monthly income') counts[r.date] = (counts[r.date] || 0) + 1; });
+    const first = new Date(y, m - 1, 1).getDay(), dim = new Date(y, m, 0).getDate(), today = todayStr(); let cells = '';
+    for (let i = 0; i < first; i++) cells += '<div></div>';
+    for (let dd = 1; dd <= dim; dd++) { const dt = `${y}-${pad2(m)}-${pad2(dd)}`, n = counts[dt] || 0; cells += `<button onclick="calPickDay('${dt}')" style="aspect-ratio:1;border-radius:12px;border:${dt === today ? '2px solid var(--accent)' : '1px solid var(--border-color)'};background:${n ? 'var(--accent-soft)' : 'transparent'};color:var(--text-primary);font:inherit;font-size:.84rem;font-weight:${n ? 800 : 500};display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer">${dd}<span style="width:5px;height:5px;border-radius:50%;margin-top:2px;background:${n ? 'var(--accent)' : 'transparent'}"></span></button>`; }
+    el.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><button class="btn-secondary" style="padding:6px 12px" onclick="calYear(-1)">‹</button><strong style="font-size:1rem">${y}</strong><button class="btn-secondary" style="padding:6px 12px" onclick="calYear(1)">›</button></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px">${MON.map((t, i) => `<button class="btn-secondary" style="padding:8px 0;font-size:.8rem;${i + 1 === m ? 'background:var(--accent-soft);color:var(--accent);border-color:var(--accent)' : ''}" onclick="calSetMonth(${i})">${t}</button>`).join('')}</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:.68rem;color:var(--text-muted);margin-bottom:4px">${['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(x => `<div>${x}</div>`).join('')}</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">${cells}</div><div style="font-size:.72rem;color:var(--text-muted);margin-top:10px">Tap a month to jump to it. Tap a day to see its transactions. A dot means there are transactions that day.</div>`;
+  };
+  const toggleAutoSalary = () => { appState.autoSalary = appState.autoSalary === false; saveState(); openIncomeModal(); showToast(appState.autoSalary === false ? 'Auto salary is off' : 'Auto salary is on'); };
+
   window.onload = () => {
     startIconify();
     loadState();
@@ -3110,7 +3209,7 @@ ${n.body}`;
     if (!appState.pin) setTimeout(() => { if (appState.setupDone === false) openSetupModal(); else renderBell(); }, 1500);
     (() => { const sp = document.getElementById('splash'); if (!sp) return; if (appState.noAnim) { sp.remove(); return; } setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 400); }, 1250); })();
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
-    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !isNativeApp()) {
       const hadCtl = !!navigator.serviceWorker.controller;
       navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtl) document.getElementById('updateBar').style.display = 'block'; });
       navigator.serviceWorker.register('sw.js').catch(() => {});

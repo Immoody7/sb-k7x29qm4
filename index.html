@@ -7,7 +7,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="app-icon-192.png" />
   <title>SmartBudget - Personal Finance & Loans Manager</title>
-  <link rel="stylesheet" href="style.css?v=7.1" />
+  <link rel="stylesheet" href="style.css?v=7.3" />
 </head>
 <body>
   <div id="splash"><div class="sp-in"><svg class="sp-logo" viewBox="0 0 100 100" width="132" height="132"><defs><linearGradient id="spg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c6cff"/><stop offset=".55" stop-color="#b266ff"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs><circle cx="50" cy="50" r="48" fill="url(#spg)"/><text x="50" y="68" text-anchor="middle" font-size="56" font-weight="800" fill="#fff" font-family="sans-serif">₹</text></svg><div class="sp-name">SmartBudget</div><div class="sp-bar"><i></i></div></div></div>
@@ -24,7 +24,7 @@
       <button class="month-btn" id="prevMonthBtn" title="Previous Month" aria-label="Previous Month">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
       </button>
-      <span class="month-label" id="currentMonthLabel">Nov 2026</span>
+      <span class="month-label" id="currentMonthLabel" onclick="openCalendar()" style="cursor:pointer">Nov 2026</span>
       <button class="month-btn" id="nextMonthBtn" title="Next Month" aria-label="Next Month">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
       </button>
@@ -319,6 +319,7 @@
           <h2 class="section-title">📝 Smart Financial Notes</h2>
           <button class="btn-primary" onclick="openNotePage()">+ New Note</button>
         </div>
+        <div id="noteSelBar" style="display:none;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;border-radius:14px;background:var(--accent-soft)"></div>
         <input type="text" id="noteSearchInput" class="form-input" placeholder="🔍 Search notes..." oninput="renderNotesTab()" />
         <div id="notesListContainer" style="display:flex; flex-direction:column; gap:8px;"></div>
       </div>
@@ -394,6 +395,7 @@
         <div id="textSizeBtns" style="display:flex;gap:8px"></div>
         <div style="font-size:.78rem;color:var(--text-secondary);margin-top:6px">Remind me to back up every</div>
         <div id="backupDaysBtns" style="display:flex;gap:6px"></div>
+        <div id="nativeRemBox" style="display:none;flex-direction:column;gap:8px"></div>
         <div id="storageLine" style="font-size:.78rem;color:var(--text-secondary)"></div>
       </div>
       <div class="card" style="display:flex; flex-direction:column; gap:10px;">
@@ -462,6 +464,6 @@
   </div>
 </div>
 
-<script src="app.js?v=7.1"></script>
+<script src="app.js?v=7.3"></script>
 </body>
 </html>
